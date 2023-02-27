@@ -5,15 +5,15 @@ import {
   ExecuteCodeAction,
 } from "@babylonjs/core";
 
-const canvas = document.getElementById("canvas");
+const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 const engine = new Engine(canvas, true);
 
-let sceneMod, initScene;
+let sceneMod, initScene: Function;
 if (process.env.RESULT) {
-  sceneMod = await import("./scene_r.js");
+  sceneMod = await import("./scene_r");
   initScene = sceneMod.initScene;
 } else {
-  sceneMod = await import("./scene.js");
+  sceneMod = await import("./scene");
   initScene = sceneMod.initScene;
 }
 
