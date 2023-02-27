@@ -1,6 +1,6 @@
 import {
   UniversalCamera,
-  Color3,
+  Color4,
   Vector3,
   HemisphericLight,
   SceneLoader,
@@ -13,20 +13,19 @@ import { AdvancedDynamicTexture, Rectangle } from "@babylonjs/gui";
 import * as GUI from "@babylonjs/gui";
 import "@babylonjs/inspector";
 import "@babylonjs/loaders";
+import { Scene } from "@babylonjs/core/scene";
 
 const GRAVITY = -9.81;
 const FPS = 60;
 
-export async function initScene(scene) {
+export async function initScene(scene: Scene) {
   const light = new HemisphericLight("light", new Vector3(0, 1, 0), scene);
   light.intensity = 0.7;
-  const camera = new UniversalCamera("camera", new Vector3(0, 8, 0), scene);
-
-  setUpCamera(camera);
+  const camera = setUpCamera(scene);
   const ui = setUpUI();
   await createEnviroment(scene);
 
-  scene.clearColor = new Color3(0.75, 0.75, 0.9);
+  scene.clearColor = new Color4(0.75, 0.75, 0.9, 1.0);
   scene.gravity = new Vector3(0, GRAVITY / FPS, 0);
   scene.collisionsEnabled = true;
 
@@ -55,7 +54,7 @@ export async function initScene(scene) {
   });
 }
 
-function createPickingRay(scene, camera, splatters) {
+function createPickingRay(scene: Scene, camera: UniversalCamera, splatters: StandardMaterial[]) {
   scene.onPointerDown = () => {
     const ray = camera.getForwardRay();
 
@@ -75,7 +74,7 @@ function createPickingRay(scene, camera, splatters) {
   };
 }
 
-function createTexture(scene) {
+function createTexture(scene: Scene) {
   const blue = new StandardMaterial("blue", scene);
   const orange = new StandardMaterial("orange", scene);
   const green = new StandardMaterial("green", scene);
@@ -136,12 +135,14 @@ function setUpUI() {
   return [xRect, yRect, dotBarInner];
 }
 
-function setUpCamera(camera) {
+function setUpCamera(scene: Scene) {
+  const camera = new UniversalCamera("camera", new Vector3(0, 8, 0), scene);
+
   camera.attachControl();
   camera.position = new Vector3(0, 4, -15);
   camera.applyGravity = true;
   camera.checkCollisions = true;
-  camera._needMoveForGravity = true;
+  (camera as any)._needMoveForGravity = true;
   camera.ellipsoid = new Vector3(0.9, 1.8, 0.9);
   camera.minZ = 0.05;
   camera.speed = 0.45;
@@ -154,7 +155,7 @@ function setUpCamera(camera) {
   return camera;
 }
 
-async function createEnviroment(scene) {
+async function createEnviroment(scene: Scene) {
   const { meshes } = await SceneLoader.ImportMeshAsync(
     "",
     "./models/",
