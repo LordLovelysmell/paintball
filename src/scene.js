@@ -35,7 +35,68 @@ export async function initScene(scene) {
   sphere.position = new Vector3(0, 2.5, 5);
   
   // Your code goes below ;)
-  
+  const splatters = createTexture(scene);
+
+  createPickingRay(scene, camera, splatters);
+
+  scene.onBeforeRenderObservable.add(() => {
+    const cameraDirection = camera
+      .getDirection(Vector3.Forward())
+      .normalizeToNew();
+    const sphereVec = sphere.position
+      .subtract(camera.position)
+      .normalizeToNew();
+
+    const dot = Vector3.Dot(cameraDirection, sphereVec);
+
+    ui[0].color = dot > 0.9 ? "green" : dot > 0.5 ? "yellow" : "red";
+    ui[1].color = dot > 0.9 ? "green" : dot > 0.5 ? "yellow" : "red";
+    ui[2].width = `${Math.floor((dot + 1) * 100)}px`;
+  });
+}
+
+function createPickingRay(scene, camera, splatters) {
+  scene.onPointerDown = () => {
+    const ray = camera.getForwardRay();
+
+    const raycastHit = scene.pickWithRay(ray);
+
+    if (raycastHit.hit) {
+      const decal = CreateDecal("decal", raycastHit.pickedMesh, {
+        position: raycastHit.pickedPoint,
+        normal: raycastHit.getNormal(true),
+        size: new Vector3(1, 1, 1),
+      });
+
+      decal.material = splatters[Math.floor(Math.random() * splatters.length)];
+
+      decal.setParent(raycastHit.pickedMesh);
+    }
+  };
+}
+
+function createTexture(scene) {
+  const blue = new StandardMaterial("blue", scene);
+  const orange = new StandardMaterial("orange", scene);
+  const green = new StandardMaterial("green", scene);
+
+  blue.diffuseTexture = new Texture("./textures/blue.png");
+  orange.diffuseTexture = new Texture("./textures/orange.png");
+  green.diffuseTexture = new Texture("./textures/green.png");
+
+  blue.diffuseTexture.hasAlpha = true;
+  orange.diffuseTexture.hasAlpha = true;
+  green.diffuseTexture.hasAlpha = true;
+
+  blue.zOffset = -1;
+  orange.zOffset = -1;
+  green.zOffset = -1;
+
+  blue.roughness = 1;
+  orange.roughness = 1;
+  green.roughness = 1;
+
+  return [blue, orange, green];
 }
 
 function setUpUI() {
@@ -54,10 +115,30 @@ function setUpUI() {
   yRect.color = "White";
   yRect.background = "White";
   tex.addControl(yRect);
+
+  const dotBar = new Rectangle("dotBar");
+  dotBar.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+  dotBar.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+  dotBar.top = "-20px";
+  dotBar.width = "200px";
+  dotBar.height = "40px";
+  dotBar.background = "grey";
+  tex.addControl(dotBar);
+
+  const dotBarInner = new Rectangle("dotBarInner");
+  dotBarInner.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+  dotBarInner.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
+  dotBarInner.width = "100px";
+  dotBarInner.height = "40px";
+  dotBarInner.background = "green";
+  dotBar.addControl(dotBarInner);
+
+  return [xRect, yRect, dotBarInner];
 }
 
 function setUpCamera(camera) {
   camera.attachControl();
+  camera.position = new Vector3(0, 4, -15);
   camera.applyGravity = true;
   camera.checkCollisions = true;
   camera._needMoveForGravity = true;
