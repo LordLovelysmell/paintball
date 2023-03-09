@@ -10,12 +10,15 @@ import {
   Mesh,
   CreateBox,
   ArcRotateCamera,
+  Scene,
+  PhysicsImpostor,
+  CreateGround,
+  PhysicsViewer,
 } from "@babylonjs/core";
 import { AdvancedDynamicTexture, Rectangle } from "@babylonjs/gui";
 import * as GUI from "@babylonjs/gui";
 import "@babylonjs/inspector";
 import "@babylonjs/loaders";
-import { Scene } from "@babylonjs/core/scene";
 import PlayerController from "./controllers/PlayerController";
 
 interface Crosshair {
@@ -31,6 +34,7 @@ export async function initScene(scene: Scene) {
   const camera = new UniversalCamera("camera", new Vector3(0, 0, 0), scene);
   camera.attachControl();
   camera.minZ = 0.05;
+  // camera.checkCollisions = true;
 
   const debugCamera = new ArcRotateCamera(
     "camera",
@@ -55,9 +59,37 @@ export async function initScene(scene: Scene) {
   scene.clearColor = new Color4(0.75, 0.75, 0.9, 1.0);
   scene.collisionsEnabled = true;
 
+  const ground = CreateGround("ground", { width: 100, height: 100 });
+  ground.physicsImpostor = new PhysicsImpostor(
+    ground,
+    PhysicsImpostor.BoxImpostor,
+    { mass: 0 }
+  );
+  ground.isVisible = false;
+
   const sphere = CreateSphere("sphere", { diameter: 5 }, scene);
-  sphere.checkCollisions = true;
-  sphere.position = new Vector3(0, 2.5, 5);
+  sphere.physicsImpostor = new PhysicsImpostor(
+    sphere,
+    PhysicsImpostor.SphereImpostor,
+    { mass: 1, restitution: 1 },
+    scene
+  );
+
+  // just a cube
+  const cube = CreateBox("cube", { size: 2 });
+  cube.position = new Vector3(-8, 1, 10);
+  cube.physicsImpostor = new PhysicsImpostor(
+    cube,
+    PhysicsImpostor.BoxImpostor,
+    { mass: 0 },
+    scene
+  );
+
+  // sphere.checkCollisions = true;
+  sphere.position = new Vector3(0, 4, 5);
+  setTimeout(() => {
+    sphere.physicsImpostor!.setLinearVelocity(new Vector3(1, 0, 0));
+  }, 2000);
 
   scene.onBeforeRenderObservable.add(() => {
     const dot = findDotProductBetween(camera, sphere);
@@ -177,16 +209,64 @@ async function createEnviroment(scene: Scene) {
   const { meshes } = await SceneLoader.ImportMeshAsync(
     "",
     "./models/",
-    "Prototype_Level.glb",
+    "Prototype_Level2.glb",
     scene
   );
 
   meshes.forEach((mesh) => {
-    mesh.checkCollisions = true;
+    // mesh.checkCollisions = true;
+
+    if (mesh.name === "Tower") {
+      mesh.setParent(null);
+      mesh.physicsImpostor = new PhysicsImpostor(
+        mesh,
+        PhysicsImpostor.BoxImpostor,
+        { mass: 0 }
+      );
+
+      const physicsViewer = new PhysicsViewer(scene);
+      physicsViewer.showImpostor(mesh.physicsImpostor, mesh as Mesh);
+    }
+
+    // const physicsViewer = new PhysicsViewer(scene);
+    // physicsViewer.showImpostor(mesh.physicsImpostor, mesh as Mesh);
+    // }
+
+    // if (mesh.name.includes("Ramp")) {
+    //   mesh.setParent(null);
+    //   mesh.physicsImpostor = new PhysicsImpostor(
+    //     mesh,
+    //     PhysicsImpostor.MeshImpostor,
+    //     { mass: 0 }
+    //   );
+
+    //   mesh.position.y = -0.2;
+
+    //   const physicsViewer = new PhysicsViewer(scene);
+    //   physicsViewer.showImpostor(mesh.physicsImpostor, mesh as Mesh);
+    // }
+
+    // if (mesh.name === "Walls") {
+    //   mesh.setParent(null);
+    //   mesh.physicsImpostor = new PhysicsImpostor(
+    //     mesh,
+    //     PhysicsImpostor.MeshImpostor,
+    //     { mass: 0 }
+    //   );
+    // }
+
+    // mesh.setParent(null);
+
+    // mesh.physicsImpostor = new PhysicsImpostor(
+    //   mesh,
+    //   PhysicsImpostor.BoxImpostor,
+    //   { mass: 0 },
+    //   scene
+    // );
 
     if (mesh.name === "Ramp") {
-      mesh.isVisible = false;
-      mesh.checkCollisions = false;
+      // mesh.isVisible = false;
+      // mesh.checkCollisions = false;
     }
   });
 }

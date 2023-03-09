@@ -1,13 +1,6 @@
-import { Scene, Engine, Vector3 } from "@babylonjs/core";
-import AmmoModule from "ammojs-typed";
+import { Scene, Engine, AmmoJSPlugin } from "@babylonjs/core";
+import { ammoModule, ammoReadyPromise } from "./ammo";
 import { initScene } from "./scene";
-
-try {
-  const ammo = await AmmoModule();
-  console.log(ammo);
-} catch (err) {
-  console.warn(err);
-}
 
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 const engine = new Engine(canvas, true);
@@ -18,6 +11,9 @@ window.addEventListener("resize", function () {
 
 (async () => {
   const scene = new Scene(engine);
+
+  await Promise.all([ammoReadyPromise]);
+  scene.enablePhysics(null, new AmmoJSPlugin(true, ammoModule));
 
   // pointer lock
   canvas.addEventListener("click", () => {

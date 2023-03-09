@@ -8,9 +8,12 @@ import {
   UniversalCamera,
   Vector3,
   StandardMaterial,
+  PhysicsImpostor,
+  CreateBox,
+  PhysicsViewer,
 } from "@babylonjs/core";
 
-class PlayerController extends AbstractMesh {
+class PlayerController {
   /**
    * Двигается ли игрок вперед?
    */
@@ -76,7 +79,9 @@ class PlayerController extends AbstractMesh {
   /**
    * "Обертка" игрока. Меш, который будет передвигаться по сцене с помощью кнопок управления
    */
-  private _playerWrapper: AbstractMesh;
+  private _playerWrapper: Mesh;
+
+  private _scene: Scene;
 
   constructor(
     camera: UniversalCamera,
@@ -84,8 +89,6 @@ class PlayerController extends AbstractMesh {
     splatters: StandardMaterial[],
     scene: Scene
   ) {
-    super("Player");
-
     this._scene = scene;
 
     this._splatters = splatters;
@@ -99,12 +102,44 @@ class PlayerController extends AbstractMesh {
 
     this._camera = camera;
     this._camera.parent = this._playerMesh;
-    this._camera.position.y = this._characterHeight;
+    this._camera.position.y = this._characterHeight / 2;
 
-    this._playerWrapper = this;
+    this._playerWrapper = CreateBox("player-wrapper", {
+      height: 2,
+      depth: 1,
+      width: 1,
+    });
+
+    // this._playerWrapper.position = new Vector3(0, 20, 0);
+
+    this._playerWrapper.isPickable = false;
+
+    this._playerWrapper.physicsImpostor = new PhysicsImpostor(
+      this._playerWrapper,
+      PhysicsImpostor.BoxImpostor,
+      {
+        mass: 50,
+      }
+    );
+
+    // this._playerWrapper.physicsImpostor.physicsBody.angularDamping = 1;
+    // this._playerWrapper.physicsImpostor.physicsBody.linearDamping = 0.5;
+
+    const physicsViewer = new PhysicsViewer(scene);
+
+    physicsViewer.showImpostor(
+      this._playerWrapper.physicsImpostor,
+      this._playerWrapper
+    );
 
     this._playerMesh.setParent(this._playerWrapper);
     this._playerMesh.isVisible = false;
+
+    this._playerWrapper.position = new Vector3(
+      0,
+      this._characterHeight / 2,
+      -15
+    );
 
     this._listenEvents();
     this._calculateMovement();
@@ -123,10 +158,15 @@ class PlayerController extends AbstractMesh {
     let once = false;
 
     this._scene.registerBeforeRender(() => {
+      console.log(this._playerWrapper.position);
+
       /**
        * Количество времени (в секундах), которое прошло между текущим и предыдущим кадром (фреймом)
        */
       const deltaTime = this._scene.getEngine().getDeltaTime() / 1000;
+
+      const currentVelocity =
+        this._playerWrapper.physicsImpostor!.getLinearVelocity();
 
       const cameraDirection = this._camera
         .getDirection(Vector3.Forward())
@@ -142,31 +182,33 @@ class PlayerController extends AbstractMesh {
         once = false;
       }
 
+      cameraDirection.y = Math.abs(Number(currentVelocity!.y.toFixed(2)));
+
       if (this._movingForward) {
-        this._playerWrapper.moveWithCollisions(
-          cameraDirection.scale(currentSpeed * deltaTime)
+        this._playerWrapper.physicsImpostor!.setLinearVelocity(
+          cameraDirection.scale(currentSpeed)
         );
       }
 
       if (this._movingBack) {
-        this._playerWrapper.moveWithCollisions(
-          cameraDirection.scale(-currentSpeed * 0.6 * deltaTime)
+        this._playerWrapper.physicsImpostor!.setLinearVelocity(
+          cameraDirection.scale(-currentSpeed * 0.6)
         );
       }
 
       if (this._movingLeft) {
-        this._playerWrapper.moveWithCollisions(
-          cameraDirection.cross(Axis.Y).scale(currentSpeed * deltaTime)
+        this._playerWrapper.physicsImpostor!.setLinearVelocity(
+          cameraDirection.cross(Axis.Y).scale(currentSpeed)
         );
       }
 
       if (this._movingRight) {
-        this._playerWrapper.moveWithCollisions(
-          cameraDirection.cross(Axis.Y).scale(-currentSpeed * deltaTime)
+        this._playerWrapper.physicsImpostor!.setLinearVelocity(
+          cameraDirection.cross(Axis.Y).scale(-currentSpeed)
         );
       }
 
-      this._playerWrapper.position.y = this._characterHeight / 2 + 0.2;
+      // this._playerWrapper.position.y = this._characterHeight / 2 + 0.2;
     });
   }
 
@@ -176,7 +218,7 @@ class PlayerController extends AbstractMesh {
 
       // left click (can't find enum)
       if (event.button === 0) {
-        const origin = this._playerMesh
+        const origin = this._playerWrapper
           .getAbsolutePosition()
           .subtract(new Vector3(0, -this._characterHeight, 0));
 
@@ -184,12 +226,18 @@ class PlayerController extends AbstractMesh {
 
         const raycastHit = this._scene.pickWithRay(ray);
 
+        if (raycastHit === null) return;
+
         if (raycastHit.hit) {
-          const decal = CreateDecal("decal", raycastHit.pickedMesh, {
-            position: raycastHit.pickedPoint,
-            normal: raycastHit.getNormal(true),
-            size: new Vector3(1, 1, 1),
-          });
+          const decal = CreateDecal(
+            "decal",
+            raycastHit.pickedMesh as AbstractMesh,
+            {
+              position: raycastHit.pickedPoint || undefined,
+              normal: raycastHit.getNormal(true) || undefined,
+              size: new Vector3(1, 1, 1),
+            }
+          );
 
           decal.material =
             this._splatters[Math.floor(Math.random() * this._splatters.length)];
@@ -205,9 +253,9 @@ class PlayerController extends AbstractMesh {
   }
 
   private _listenEvents() {
-    const canvas: HTMLCanvasElement = this._scene
+    const canvas = this._scene
       .getEngine()
-      .getRenderingCanvas();
+      .getRenderingCanvas() as HTMLCanvasElement;
 
     this._onKeyDown(canvas);
     this._onKeyUp(canvas);
