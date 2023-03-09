@@ -3,5 +3,14 @@
       "module": "es2022",
       "target": "es2017",
       "moduleResolution": "node",
+      "allowSyntheticDefaultImports": true,
+      "esModuleInterop": true,
+      "typeRoots": ["node_modules/ammojs-typed/ammo/ambient"],
+      "noImplicitAny": false,
+      "noImplicitReturns": true,
+      "noImplicitThis": true,
+      "strictNullChecks": false,
+      "strictFunctionTypes": true,
+      "skipLibCheck": true,
   }
 }

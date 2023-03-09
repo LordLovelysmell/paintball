@@ -1,5 +1,13 @@
-import { Scene, Engine } from "@babylonjs/core";
+import { Scene, Engine, Vector3 } from "@babylonjs/core";
+import AmmoModule from "ammojs-typed";
 import { initScene } from "./scene";
+
+try {
+  const ammo = await AmmoModule();
+  console.log(ammo);
+} catch (err) {
+  console.warn(err);
+}
 
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 const engine = new Engine(canvas, true);

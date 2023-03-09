@@ -1,7 +1,9 @@
 const { info } = require("console");
 const path = require("path");
 const webpack = require("webpack");
+
 module.exports = (env) => ({
+  context: __dirname,
   mode: "development",
   entry: "./src/index.ts",
   stats: "errors-only",
@@ -28,12 +30,17 @@ module.exports = (env) => ({
   },
   resolve: {
     extensions: [".ts", ".js"],
+    fallback: {
+      fs: false,
+      path: false, // ammo.js seems to also use path
+    },
   },
   module: {
     rules: [
       {
         test: /\.tsx?$/,
         loader: "ts-loader",
+        exclude: /node_modules/,
       },
     ],
   },
