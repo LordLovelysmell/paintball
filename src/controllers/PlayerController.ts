@@ -78,6 +78,8 @@ class PlayerController extends AbstractMesh {
    */
   private _playerWrapper: AbstractMesh;
 
+  _scene: Scene;
+
   constructor(
     camera: UniversalCamera,
     playerMesh: Mesh,
