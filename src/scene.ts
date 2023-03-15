@@ -10,12 +10,12 @@ import {
   Mesh,
   CreateBox,
   ArcRotateCamera,
+  Scene,
 } from "@babylonjs/core";
 import { AdvancedDynamicTexture, Rectangle } from "@babylonjs/gui";
 import * as GUI from "@babylonjs/gui";
 import "@babylonjs/inspector";
 import "@babylonjs/loaders";
-import { Scene } from "@babylonjs/core/scene";
 import PlayerController from "./controllers/PlayerController";
 
 interface Crosshair {
