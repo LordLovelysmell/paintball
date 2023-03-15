@@ -1,5 +1,8 @@
 import { Scene, Engine } from "@babylonjs/core";
+import * as cannon from "cannon";
 import { initScene } from "./scene";
+
+window.CANNON = cannon;
 
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 const engine = new Engine(canvas, true);
