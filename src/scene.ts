@@ -11,12 +11,14 @@ import {
   CreateBox,
   ArcRotateCamera,
   Scene,
+  CannonJSPlugin,
 } from "@babylonjs/core";
 import { AdvancedDynamicTexture, Rectangle } from "@babylonjs/gui";
 import * as GUI from "@babylonjs/gui";
 import "@babylonjs/inspector";
 import "@babylonjs/loaders";
 import PlayerController from "./controllers/PlayerController";
+import { PhysicsImpostor } from "@babylonjs/core/Physics/v1/physicsImpostor";
 
 interface Crosshair {
   xRect: Rectangle;
@@ -25,6 +27,8 @@ interface Crosshair {
 
 export async function initScene(scene: Scene) {
   scene.getEngine().displayLoadingUI();
+
+  scene.enablePhysics(null, new CannonJSPlugin());
 
   const light = new HemisphericLight("light", new Vector3(0, 1, 0), scene);
   light.intensity = 0.7;
@@ -53,11 +57,19 @@ export async function initScene(scene: Scene) {
   );
 
   scene.clearColor = new Color4(0.75, 0.75, 0.9, 1.0);
-  scene.collisionsEnabled = true;
+  // scene.collisionsEnabled = true;
 
   const sphere = CreateSphere("sphere", { diameter: 5 }, scene);
-  sphere.checkCollisions = true;
-  sphere.position = new Vector3(0, 2.5, 5);
+  // sphere.checkCollisions = true;
+  sphere.position = new Vector3(0, 6, 5);
+
+  sphere.physicsImpostor = new PhysicsImpostor(
+    sphere,
+    PhysicsImpostor.SphereImpostor,
+    {
+      mass: 1,
+    }
+  );
 
   scene.onBeforeRenderObservable.add(() => {
     const dot = findDotProductBetween(camera, sphere);
@@ -182,7 +194,18 @@ async function createEnviroment(scene: Scene) {
   );
 
   meshes.forEach((mesh) => {
-    mesh.checkCollisions = true;
+    // mesh.checkCollisions = true;
+
+    if (mesh.name === "Floor") {
+      mesh.setParent(null);
+      mesh.physicsImpostor = new PhysicsImpostor(
+        mesh,
+        PhysicsImpostor.BoxImpostor,
+        {
+          mass: 0,
+        }
+      );
+    }
 
     if (mesh.name === "Ramp") {
       mesh.isVisible = false;
