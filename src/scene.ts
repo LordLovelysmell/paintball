@@ -216,11 +216,11 @@ async function createEnviroment(scene: Scene) {
         mesh,
         PhysicsImpostor.BoxImpostor,
         {
-          mass: 250,
+          mass: 10,
         }
       );
 
-      mesh.position.y += 0.1;
+      mesh.position.y += 0.5;
     }
 
     if (mesh.name === "Ramp") {

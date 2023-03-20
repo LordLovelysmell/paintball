@@ -198,7 +198,7 @@ class PlayerController {
 
       // left click (can't find enum)
       if (event.button === 0) {
-        const origin = this._playerMesh
+        const origin = this._playerWrapper
           .getAbsolutePosition()
           .subtract(new Vector3(0, -this._characterHeight, 0));
 
@@ -206,9 +206,35 @@ class PlayerController {
 
         const raycastHit = this._scene.pickWithRay(ray);
 
-        if (raycastHit.hit) {
-          const decal = CreateDecal("decal", raycastHit.pickedMesh, {
-            position: raycastHit.pickedPoint,
+        const cameraDirection = this._camera.getDirection(Vector3.Forward());
+
+        const ball = CreateSphere("ball", { diameter: 0.1 });
+        ball.position = origin;
+
+        ball.physicsImpostor = new PhysicsImpostor(
+          ball,
+          PhysicsImpostor.SphereImpostor,
+          {
+            mass: 0.5,
+          }
+        );
+
+        ball.physicsImpostor.applyImpulse(
+          cameraDirection.scale(20),
+          ball.getAbsolutePosition()
+        );
+
+        ball.physicsImpostor.onCollideEvent = (collider, collidedWith) => {
+          ball.dispose();
+
+          const collidePosition = collider.physicsBody.position;
+
+          const decal = CreateDecal("decal", collidedWith.object as Mesh, {
+            position: new Vector3(
+              collidePosition.x,
+              collidePosition.y,
+              collidePosition.z
+            ),
             normal: raycastHit.getNormal(true),
             size: new Vector3(1, 1, 1),
           });
@@ -216,8 +242,10 @@ class PlayerController {
           decal.material =
             this._splatters[Math.floor(Math.random() * this._splatters.length)];
 
-          decal.setParent(raycastHit.pickedMesh);
-        }
+          decal.isPickable = false;
+
+          decal.setParent(collidedWith.object as Mesh);
+        };
       } else if (event.button === 2) {
         // right click (can't find enum)
         this._isZooming = !this._isZooming;
