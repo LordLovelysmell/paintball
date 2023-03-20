@@ -12,6 +12,7 @@ import {
   ArcRotateCamera,
   Scene,
   CannonJSPlugin,
+  Axis,
 } from "@babylonjs/core";
 import { AdvancedDynamicTexture, Rectangle } from "@babylonjs/gui";
 import * as GUI from "@babylonjs/gui";
@@ -189,14 +190,16 @@ async function createEnviroment(scene: Scene) {
   const { meshes } = await SceneLoader.ImportMeshAsync(
     "",
     "./models/",
-    "Prototype_Level.glb",
+    "paintball-level-final.glb",
     scene
   );
 
   meshes.forEach((mesh) => {
-    // mesh.checkCollisions = true;
-
-    if (mesh.name === "Floor") {
+    if (
+      mesh.name === "Floor" ||
+      mesh.name.includes("Walls") ||
+      mesh.name.includes("Element")
+    ) {
       mesh.setParent(null);
       mesh.physicsImpostor = new PhysicsImpostor(
         mesh,
@@ -207,9 +210,48 @@ async function createEnviroment(scene: Scene) {
       );
     }
 
+    if (mesh.name.includes("Box")) {
+      mesh.setParent(null);
+      mesh.physicsImpostor = new PhysicsImpostor(
+        mesh,
+        PhysicsImpostor.BoxImpostor,
+        {
+          mass: 250,
+        }
+      );
+
+      mesh.position.y += 0.1;
+    }
+
     if (mesh.name === "Ramp") {
-      mesh.isVisible = false;
-      mesh.checkCollisions = false;
+      const rampBox1 = CreateBox("ramp-box1", {
+        width: 6.71,
+        height: 4.14,
+        depth: 4,
+      });
+
+      rampBox1.position = new Vector3(1.35, 2.17, 2.69);
+
+      const rampBox2 = CreateBox("ramp-box2", {
+        width: 6.71,
+        height: 4.14,
+        depth: 8,
+      });
+
+      rampBox2.position = new Vector3(1.35, 0.33, -1.55);
+      rampBox2.rotate(Axis.X, -Math.PI / 5.5);
+
+      rampBox1.physicsImpostor = new PhysicsImpostor(
+        rampBox1,
+        PhysicsImpostor.BoxImpostor
+      );
+
+      rampBox2.physicsImpostor = new PhysicsImpostor(
+        rampBox2,
+        PhysicsImpostor.BoxImpostor
+      );
+
+      rampBox1.isVisible = rampBox2.isVisible = false;
     }
   });
 }
