@@ -1,8 +1,11 @@
 import { Scene, Engine } from "@babylonjs/core";
 import { initScene } from "./scene";
+import * as cannon from "cannon";
 
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 const engine = new Engine(canvas, true);
+
+window.CANNON = cannon;
 
 window.addEventListener("resize", function () {
   engine.resize();

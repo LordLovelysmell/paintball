@@ -8,9 +8,12 @@ import {
   UniversalCamera,
   Vector3,
   StandardMaterial,
+  CreateBox,
+  CreateSphere,
 } from "@babylonjs/core";
+import { PhysicsImpostor } from "@babylonjs/core/Physics/v1/physicsImpostor";
 
-class PlayerController extends AbstractMesh {
+class PlayerController {
   /**
    * Двигается ли игрок вперед?
    */
@@ -46,6 +49,8 @@ class PlayerController extends AbstractMesh {
    */
   private _isRunning = false;
 
+  private _isJumping = false;
+
   /**
    * Оружие игрока
    */
@@ -78,14 +83,14 @@ class PlayerController extends AbstractMesh {
    */
   private _playerWrapper: AbstractMesh;
 
+  _scene: Scene;
+
   constructor(
     camera: UniversalCamera,
     playerMesh: Mesh,
     splatters: StandardMaterial[],
     scene: Scene
   ) {
-    super("Player");
-
     this._scene = scene;
 
     this._splatters = splatters;
@@ -98,10 +103,29 @@ class PlayerController extends AbstractMesh {
     );
 
     this._camera = camera;
-    this._camera.parent = this._playerMesh;
     this._camera.position.y = this._characterHeight;
 
-    this._playerWrapper = this;
+    this._playerWrapper = CreateSphere("player-wrapper", {
+      diameter: 1,
+    });
+
+    this._playerWrapper.position = new Vector3(
+      0,
+      this._characterHeight / 2,
+      -10
+    );
+
+    this._playerWrapper.physicsImpostor = new PhysicsImpostor(
+      this._playerWrapper,
+      PhysicsImpostor.SphereImpostor,
+      {
+        mass: 50,
+      }
+    );
+
+    this._playerWrapper.physicsImpostor.physicsBody.angularDamping = 1;
+
+    this._camera.parent = this._playerWrapper;
 
     this._playerMesh.setParent(this._playerWrapper);
     this._playerMesh.isVisible = false;
@@ -123,16 +147,14 @@ class PlayerController extends AbstractMesh {
     let once = false;
 
     this._scene.registerBeforeRender(() => {
-      /**
-       * Количество времени (в секундах), которое прошло между текущим и предыдущим кадром (фреймом)
-       */
-      const deltaTime = this._scene.getEngine().getDeltaTime() / 1000;
-
       const cameraDirection = this._camera
         .getDirection(Vector3.Forward())
         .normalizeToNew();
 
       const currentSpeed = this._isRunning ? this._runSpeed : this._walkSpeed;
+
+      const currentVelocity =
+        this._playerWrapper.physicsImpostor.getLinearVelocity();
 
       if (this._isRunning && !once) {
         this._weapon.rotate(Axis.Y, -Math.PI / 5);
@@ -142,31 +164,31 @@ class PlayerController extends AbstractMesh {
         once = false;
       }
 
+      let velocity = new Vector3(0, 0, 0);
+
       if (this._movingForward) {
-        this._playerWrapper.moveWithCollisions(
-          cameraDirection.scale(currentSpeed * deltaTime)
-        );
+        velocity = cameraDirection.scale(currentSpeed);
       }
 
       if (this._movingBack) {
-        this._playerWrapper.moveWithCollisions(
-          cameraDirection.scale(-currentSpeed * 0.6 * deltaTime)
-        );
+        velocity = cameraDirection.scale(-currentSpeed * 0.6);
       }
 
       if (this._movingLeft) {
-        this._playerWrapper.moveWithCollisions(
-          cameraDirection.cross(Axis.Y).scale(currentSpeed * deltaTime)
-        );
+        velocity = cameraDirection.cross(Axis.Y).scale(currentSpeed);
       }
 
       if (this._movingRight) {
-        this._playerWrapper.moveWithCollisions(
-          cameraDirection.cross(Axis.Y).scale(-currentSpeed * deltaTime)
-        );
+        velocity = cameraDirection.cross(Axis.Y).scale(-currentSpeed);
       }
 
-      this._playerWrapper.position.y = this._characterHeight / 2 + 0.2;
+      if (this._isJumping) {
+        currentVelocity.y = 10;
+      }
+
+      velocity.y = currentVelocity.y;
+
+      this._playerWrapper.physicsImpostor.setLinearVelocity(velocity);
     });
   }
 
@@ -176,7 +198,7 @@ class PlayerController extends AbstractMesh {
 
       // left click (can't find enum)
       if (event.button === 0) {
-        const origin = this._playerMesh
+        const origin = this._playerWrapper
           .getAbsolutePosition()
           .subtract(new Vector3(0, -this._characterHeight, 0));
 
@@ -184,18 +206,50 @@ class PlayerController extends AbstractMesh {
 
         const raycastHit = this._scene.pickWithRay(ray);
 
-        if (raycastHit.hit) {
-          const decal = CreateDecal("decal", raycastHit.pickedMesh, {
-            position: raycastHit.pickedPoint,
-            normal: raycastHit.getNormal(true),
-            size: new Vector3(1, 1, 1),
-          });
+        const cameraDirection = this._camera.getDirection(Vector3.Forward());
 
-          decal.material =
-            this._splatters[Math.floor(Math.random() * this._splatters.length)];
+        const ball = CreateSphere("ball", { diameter: 0.1 });
+        ball.position = origin;
 
-          decal.setParent(raycastHit.pickedMesh);
-        }
+        ball.physicsImpostor = new PhysicsImpostor(
+          ball,
+          PhysicsImpostor.SphereImpostor,
+          {
+            mass: 0.5,
+          }
+        );
+
+        ball.physicsImpostor.applyImpulse(
+          cameraDirection.scale(20),
+          ball.getAbsolutePosition()
+        );
+
+        ball.physicsImpostor.onCollideEvent = (collider, collidedWith) => {
+          setTimeout(() => {
+            ball.dispose();
+
+            const collidePosition = collider.physicsBody.position;
+
+            const decal = CreateDecal("decal", collidedWith.object as Mesh, {
+              position: new Vector3(
+                collidePosition.x,
+                collidePosition.y,
+                collidePosition.z
+              ),
+              normal: raycastHit?.getNormal(true),
+              size: new Vector3(1, 1, 1),
+            });
+
+            decal.material =
+              this._splatters[
+                Math.floor(Math.random() * this._splatters.length)
+              ];
+
+            decal.isPickable = false;
+
+            decal.setParent(collidedWith.object as Mesh);
+          }, 0);
+        };
       } else if (event.button === 2) {
         // right click (can't find enum)
         this._isZooming = !this._isZooming;
@@ -233,6 +287,9 @@ class PlayerController extends AbstractMesh {
           case "ShiftLeft":
             this._isRunning = true;
             break;
+          case "Space":
+            this._isJumping = true;
+            break;
         }
       },
       false
@@ -258,6 +315,9 @@ class PlayerController extends AbstractMesh {
             break;
           case "ShiftLeft":
             this._isRunning = false;
+          case "Space":
+            this._isJumping = false;
+            break;
         }
       },
       false

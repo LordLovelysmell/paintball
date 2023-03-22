@@ -10,13 +10,17 @@ import {
   Mesh,
   CreateBox,
   ArcRotateCamera,
+  Scene,
+  CannonJSPlugin,
+  Axis,
+  PhysicsViewer,
 } from "@babylonjs/core";
 import { AdvancedDynamicTexture, Rectangle } from "@babylonjs/gui";
 import * as GUI from "@babylonjs/gui";
 import "@babylonjs/inspector";
 import "@babylonjs/loaders";
-import { Scene } from "@babylonjs/core/scene";
 import PlayerController from "./controllers/PlayerController";
+import { PhysicsImpostor } from "@babylonjs/core/Physics/v1/physicsImpostor";
 
 interface Crosshair {
   xRect: Rectangle;
@@ -25,6 +29,8 @@ interface Crosshair {
 
 export async function initScene(scene: Scene) {
   scene.getEngine().displayLoadingUI();
+
+  scene.enablePhysics(null, new CannonJSPlugin());
 
   const light = new HemisphericLight("light", new Vector3(0, 1, 0), scene);
   light.intensity = 0.7;
@@ -53,11 +59,19 @@ export async function initScene(scene: Scene) {
   );
 
   scene.clearColor = new Color4(0.75, 0.75, 0.9, 1.0);
-  scene.collisionsEnabled = true;
+  // scene.collisionsEnabled = true;
 
   const sphere = CreateSphere("sphere", { diameter: 5 }, scene);
-  sphere.checkCollisions = true;
-  sphere.position = new Vector3(0, 2.5, 5);
+  // sphere.checkCollisions = true;
+  sphere.position = new Vector3(0, 6, 5);
+
+  sphere.physicsImpostor = new PhysicsImpostor(
+    sphere,
+    PhysicsImpostor.SphereImpostor,
+    {
+      mass: 1,
+    }
+  );
 
   scene.onBeforeRenderObservable.add(() => {
     const dot = findDotProductBetween(camera, sphere);
@@ -177,16 +191,144 @@ async function createEnviroment(scene: Scene) {
   const { meshes } = await SceneLoader.ImportMeshAsync(
     "",
     "./models/",
-    "Prototype_Level.glb",
+    "paintball-level-final.glb",
     scene
   );
 
+  const fracturedCube = await SceneLoader.ImportMeshAsync(
+    "",
+    "./models/",
+    "fractured-cube.glb",
+    scene
+  );
+
+  const destructableBox = CreateBox("destructable-box", { size: 2 });
+  destructableBox.material = meshes[5].material;
+
+  destructableBox.position = new Vector3(0, 3, -15);
+
+  destructableBox.physicsImpostor = new PhysicsImpostor(
+    destructableBox,
+    PhysicsImpostor.BoxImpostor,
+    {
+      mass: 30,
+    }
+  );
+
+  let counter = 0;
+  destructableBox.physicsImpostor.onCollideEvent = (collider, collidedWith) => {
+    if ((collidedWith.object as Mesh).id === "ball") {
+      counter++;
+    }
+
+    if (counter >= 3) {
+      fracturedCube.meshes[0].position.copyFrom(destructableBox.position);
+
+      fracturedCube.meshes.forEach((mesh) => {
+        mesh.setParent(null);
+        mesh.physicsImpostor = new PhysicsImpostor(
+          mesh,
+          PhysicsImpostor.BoxImpostor,
+          {
+            mass: 0.5,
+          }
+        );
+        mesh.material = meshes[5].material;
+
+        // const physicsViewer = new PhysicsViewer();
+        // physicsViewer.showImpostor(mesh.physicsImpostor);
+      });
+
+      destructableBox.dispose();
+    }
+  };
+
   meshes.forEach((mesh) => {
-    mesh.checkCollisions = true;
+    if (
+      mesh.name === "Floor" ||
+      mesh.name.includes("Walls") ||
+      mesh.name.includes("Element")
+    ) {
+      mesh.setParent(null);
+      mesh.physicsImpostor = new PhysicsImpostor(
+        mesh,
+        PhysicsImpostor.BoxImpostor,
+        {
+          mass: 0,
+        }
+      );
+    }
+
+    if (mesh.name.includes("Box")) {
+      mesh.setParent(null);
+      mesh.physicsImpostor = new PhysicsImpostor(
+        mesh,
+        PhysicsImpostor.BoxImpostor,
+        {
+          mass: 10,
+        }
+      );
+
+      mesh.position.y += 0.5;
+
+      mesh.metadata = {
+        counter: 0,
+      };
+
+      mesh.physicsImpostor.onCollideEvent = async (collider, collidedWith) => {
+        if ((collidedWith.object as Mesh).id === "ball") {
+          mesh.metadata.counter++;
+        }
+
+        if (mesh.metadata.counter >= 3) {
+          const localCube = await SceneLoader.ImportMeshAsync(
+            "",
+            "./models/",
+            "fractured-cube.glb",
+            scene
+          );
+          localCube.meshes[0].position.copyFrom(mesh.position);
+
+          localCube.meshes.forEach((_mesh) => {
+            _mesh.setParent(null);
+            _mesh.physicsImpostor = new PhysicsImpostor(
+              _mesh,
+              PhysicsImpostor.BoxImpostor,
+              {
+                mass: 0.5,
+              }
+            );
+            _mesh.material = mesh.material;
+          });
+
+          mesh.dispose();
+        }
+      };
+    }
 
     if (mesh.name === "Ramp") {
-      mesh.isVisible = false;
-      mesh.checkCollisions = false;
+      const rampBox1 = CreateBox("ramp-box1", {
+        width: 6.71,
+        height: 4.14,
+        depth: 4,
+      });
+      rampBox1.position = new Vector3(1.35, 2.17, 2.69);
+      const rampBox2 = CreateBox("ramp-box2", {
+        width: 6.71,
+        height: 4.14,
+        depth: 8,
+      });
+      rampBox2.position = new Vector3(1.35, 0.33, -1.55);
+      rampBox2.rotate(Axis.X, -Math.PI / 5.5);
+      rampBox1.physicsImpostor = new PhysicsImpostor(
+        rampBox1,
+        PhysicsImpostor.BoxImpostor
+      );
+      rampBox2.physicsImpostor = new PhysicsImpostor(
+        rampBox2,
+        PhysicsImpostor.BoxImpostor
+      );
+      rampBox1.isVisible = rampBox2.isVisible = false;
     }
   });
 }
