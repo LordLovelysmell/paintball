@@ -225,26 +225,30 @@ class PlayerController {
         );
 
         ball.physicsImpostor.onCollideEvent = (collider, collidedWith) => {
-          ball.dispose();
+          setTimeout(() => {
+            ball.dispose();
 
-          const collidePosition = collider.physicsBody.position;
+            const collidePosition = collider.physicsBody.position;
 
-          const decal = CreateDecal("decal", collidedWith.object as Mesh, {
-            position: new Vector3(
-              collidePosition.x,
-              collidePosition.y,
-              collidePosition.z
-            ),
-            normal: raycastHit.getNormal(true),
-            size: new Vector3(1, 1, 1),
-          });
+            const decal = CreateDecal("decal", collidedWith.object as Mesh, {
+              position: new Vector3(
+                collidePosition.x,
+                collidePosition.y,
+                collidePosition.z
+              ),
+              normal: raycastHit?.getNormal(true),
+              size: new Vector3(1, 1, 1),
+            });
 
-          decal.material =
-            this._splatters[Math.floor(Math.random() * this._splatters.length)];
+            decal.material =
+              this._splatters[
+                Math.floor(Math.random() * this._splatters.length)
+              ];
 
-          decal.isPickable = false;
+            decal.isPickable = false;
 
-          decal.setParent(collidedWith.object as Mesh);
+            decal.setParent(collidedWith.object as Mesh);
+          }, 0);
         };
       } else if (event.button === 2) {
         // right click (can't find enum)
