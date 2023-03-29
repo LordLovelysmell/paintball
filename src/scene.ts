@@ -13,7 +13,10 @@ import {
   Scene,
   CannonJSPlugin,
   Axis,
-  PhysicsViewer,
+  Ray,
+  RayHelper,
+  Color3,
+  AbstractMesh,
 } from "@babylonjs/core";
 import { AdvancedDynamicTexture, Rectangle } from "@babylonjs/gui";
 import * as GUI from "@babylonjs/gui";
@@ -30,7 +33,7 @@ interface Crosshair {
 export async function initScene(scene: Scene) {
   scene.getEngine().displayLoadingUI();
 
-  scene.enablePhysics(null, new CannonJSPlugin());
+  scene.enablePhysics(new Vector3(0, -20, 0), new CannonJSPlugin());
 
   const light = new HemisphericLight("light", new Vector3(0, 1, 0), scene);
   light.intensity = 0.7;
@@ -59,26 +62,43 @@ export async function initScene(scene: Scene) {
   );
 
   scene.clearColor = new Color4(0.75, 0.75, 0.9, 1.0);
-  // scene.collisionsEnabled = true;
 
-  const sphere = CreateSphere("sphere", { diameter: 5 }, scene);
-  // sphere.checkCollisions = true;
-  sphere.position = new Vector3(0, 6, 5);
+  const sphere1 = CreateSphere("sphere1", { diameter: 0.5 });
+  sphere1.position = new Vector3(0, 1, 4.75);
 
-  sphere.physicsImpostor = new PhysicsImpostor(
-    sphere,
-    PhysicsImpostor.SphereImpostor,
-    {
-      mass: 1,
-    }
+  const sphere2 = CreateSphere("sphere2", { diameter: 0.5 });
+  sphere2.position = new Vector3(0, 3, 14.55);
+
+  const redMaterial = new StandardMaterial("red-material");
+  redMaterial.diffuseColor = new Color3(1, 0, 0);
+
+  sphere1.isPickable = false;
+
+  const ray = new Ray(
+    sphere1.getAbsolutePosition(),
+    sphere2.position.subtract(sphere1.position).normalize(),
+    10
   );
 
+  let trapIsReady = true;
+
   scene.onBeforeRenderObservable.add(() => {
-    const dot = findDotProductBetween(camera, sphere);
+    const pickingInfo = scene.pickWithRay(ray);
 
-    changeColorForCrosshair(ui.crosshair, dot);
+    if (pickingInfo && pickingInfo.pickedMesh.id !== "sphere2" && trapIsReady) {
+      trapIsReady = false;
+      sphere1.material = sphere2.material = redMaterial;
 
-    ui.vectorComparator.dotBarInner.width = `${Math.floor((dot + 1) * 100)}px`;
+      const timer = setTimeout(() => {
+        trapIsReady = true;
+        sphere1.material = sphere2.material = null;
+        clearTimeout(timer);
+      }, 1500);
+
+      if (pickingInfo.pickedMesh.id === "player-wrapper") {
+        player.subtractHealth(5);
+      }
+    }
   });
 
   window.addEventListener("keydown", (event) => {
@@ -202,6 +222,8 @@ async function createEnviroment(scene: Scene) {
     scene
   );
 
+  const floor = scene.getMeshByName("Floor");
+
   const destructableBox = CreateBox("destructable-box", { size: 2 });
   destructableBox.material = meshes[5].material;
 
@@ -234,6 +256,15 @@ async function createEnviroment(scene: Scene) {
           }
         );
         mesh.material = meshes[5].material;
+
+        mesh.physicsImpostor.registerOnPhysicsCollide(
+          floor.physicsImpostor,
+          () => {
+            setTimeout(() => {
+              mesh.physicsImpostor.dispose();
+            }, 5000);
+          }
+        );
 
         // const physicsViewer = new PhysicsViewer();
         // physicsViewer.showImpostor(mesh.physicsImpostor);
@@ -299,6 +330,15 @@ async function createEnviroment(scene: Scene) {
               }
             );
             _mesh.material = mesh.material;
+
+            _mesh.physicsImpostor.registerOnPhysicsCollide(
+              floor.physicsImpostor,
+              () => {
+                setTimeout(() => {
+                  _mesh.physicsImpostor.dispose();
+                }, 5000);
+              }
+            );
           });
 
           mesh.dispose();
@@ -331,4 +371,41 @@ async function createEnviroment(scene: Scene) {
       rampBox1.isVisible = rampBox2.isVisible = false;
     }
   });
+
+  // #2
+  // const raySphere = CreateSphere("ray-sphere", {
+  //   diameter: 2,
+  // });
+
+  // raySphere.position = new Vector3(-10, 4, 0);
+
+  // const ray = new Ray(
+  //   raySphere.position.subtract(new Vector3(0, 1, 0)),
+  //   Vector3.Down(),
+  //   2
+  // );
+  // const rayHelper = new RayHelper(ray);
+  // rayHelper.show(scene);
+  // const test = scene.pickWithRay(ray);
+
+  // #3
+  // const sphere1 = CreateSphere("sphere1", { diameter: 0.5 });
+  // sphere1.position = new Vector3(0, 1, 4.75);
+
+  // const sphere2 = CreateSphere("sphere2", { diameter: 0.5 });
+  // sphere2.position = new Vector3(0, 3, 14.55);
+
+  // sphere1.isPickable = false;
+
+  // const ray = new Ray(
+  //   sphere1.getAbsolutePosition(),
+  //   sphere2.position.subtract(sphere1.position).normalize(),
+  //   10
+  // );
+
+  // const rayHelper = new RayHelper(ray);
+  // rayHelper.show(scene);
+  // const pickingInfo = scene.pickWithRay(ray);
+
+  // console.log(pickingInfo);
 }

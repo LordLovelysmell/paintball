@@ -8,10 +8,17 @@ import {
   UniversalCamera,
   Vector3,
   StandardMaterial,
-  CreateBox,
   CreateSphere,
+  Ray,
+  Animation,
 } from "@babylonjs/core";
 import { PhysicsImpostor } from "@babylonjs/core/Physics/v1/physicsImpostor";
+import {
+  AdvancedDynamicTexture,
+  Control,
+  Image,
+  TextBlock,
+} from "@babylonjs/gui";
 
 class PlayerController {
   /**
@@ -44,12 +51,16 @@ class PlayerController {
    */
   private _characterHeight = 1.8;
 
+  private _characterHealth = 100;
+
   /**
    * Бежит ли игрок?
    */
   private _isRunning = false;
 
   private _isJumping = false;
+
+  private _canJump = true;
 
   /**
    * Оружие игрока
@@ -69,7 +80,7 @@ class PlayerController {
   /**
    * Скорость бега
    */
-  private _runSpeed = 25;
+  private _runSpeed = 15;
 
   /**
    * Массив материалов, которыми игрок может "стрелять" (используется для декалей)
@@ -77,6 +88,10 @@ class PlayerController {
   private _splatters: StandardMaterial[];
 
   private _camera: UniversalCamera;
+
+  private _hpText: TextBlock;
+
+  private _damageIndicator: Image;
 
   /**
    * "Обертка" игрока. Меш, который будет передвигаться по сцене с помощью кнопок управления
@@ -96,17 +111,13 @@ class PlayerController {
     this._splatters = splatters;
 
     this._playerMesh = playerMesh;
-    this._playerMesh.position = new Vector3(
-      this._playerMesh.position.x,
-      this._characterHeight / 2,
-      this._playerMesh.position.z
-    );
 
     this._camera = camera;
     this._camera.position.y = this._characterHeight;
 
     this._playerWrapper = CreateSphere("player-wrapper", {
       diameter: 1,
+      diameterY: this._characterHeight,
     });
 
     this._playerWrapper.position = new Vector3(
@@ -119,7 +130,8 @@ class PlayerController {
       this._playerWrapper,
       PhysicsImpostor.SphereImpostor,
       {
-        mass: 50,
+        mass: 80,
+        friction: 0,
       }
     );
 
@@ -128,7 +140,16 @@ class PlayerController {
     this._camera.parent = this._playerWrapper;
 
     this._playerMesh.setParent(this._playerWrapper);
+
+    this._playerMesh.position = new Vector3(
+      this._playerMesh.position.x,
+      this._characterHeight / 2,
+      0
+    );
+
     this._playerMesh.isVisible = false;
+
+    this._setUpGUI();
 
     this._listenEvents();
     this._calculateMovement();
@@ -143,13 +164,13 @@ class PlayerController {
     this._weapon.position = offset;
   }
 
-  _calculateMovement() {
+  private _calculateMovement() {
     let once = false;
 
     this._scene.registerBeforeRender(() => {
-      const cameraDirection = this._camera
-        .getDirection(Vector3.Forward())
-        .normalizeToNew();
+      this._hpText.text = String(this._characterHealth);
+
+      const cameraDirection = this._camera.getDirection(Vector3.Forward());
 
       const currentSpeed = this._isRunning ? this._runSpeed : this._walkSpeed;
 
@@ -183,7 +204,10 @@ class PlayerController {
       }
 
       if (this._isJumping) {
-        currentVelocity.y = 10;
+        this._canJump = this._checkIsGrounded();
+        if (this._canJump) {
+          currentVelocity.y = 10;
+        }
       }
 
       velocity.y = currentVelocity.y;
@@ -192,7 +216,82 @@ class PlayerController {
     });
   }
 
-  _calculateShoot() {
+  private _setUpGUI() {
+    const ui = AdvancedDynamicTexture.CreateFullscreenUI("player-ui");
+
+    const damageIndicator = new Image(
+      "damage-indicator",
+      "./textures/damage-indicator.png"
+    );
+    damageIndicator.isVisible = false;
+    damageIndicator.alpha = 0.5;
+
+    ui.addControl(damageIndicator);
+
+    const hpText = new TextBlock("HP", String(this._characterHealth));
+    hpText.fontSize = "40px";
+    hpText.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+    hpText.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+    hpText.width = "100px";
+    hpText.height = "50px";
+    hpText.left = 20;
+    hpText.top = 20;
+
+    ui.addControl(hpText);
+
+    this._hpText = hpText;
+    this._damageIndicator = damageIndicator;
+  }
+
+  subtractHealth(x: number) {
+    this._characterHealth -= x;
+
+    this._damageIndicator.isVisible = true;
+
+    const damageIndicatorAnimation = new Animation(
+      "damage-indicator-animation",
+      "alpha",
+      20,
+      Animation.ANIMATIONTYPE_FLOAT,
+      Animation.ANIMATIONLOOPMODE_CONSTANT
+    );
+
+    const keyFrames = [];
+    keyFrames.push({
+      frame: 0,
+      value: 0.5,
+    });
+
+    keyFrames.push({
+      frame: 10,
+      value: 0.25,
+    });
+
+    keyFrames.push({
+      frame: 20,
+      value: 0,
+    });
+
+    damageIndicatorAnimation.setKeys(keyFrames);
+
+    this._damageIndicator.animations = [];
+    this._damageIndicator.animations.push(damageIndicatorAnimation);
+
+    this._scene.beginAnimation(this._damageIndicator, 0, 20, false);
+  }
+
+  private _checkIsGrounded() {
+    const ray = new Ray(
+      this._playerWrapper.getAbsolutePosition(),
+      Vector3.Down(),
+      1
+    );
+    const pickingInfo = this._scene.pickWithRay(ray);
+
+    return Boolean(pickingInfo.pickedMesh);
+  }
+
+  private _calculateShoot() {
     this._scene.onPointerDown = (event) => {
       if (this._isRunning) return;
 
