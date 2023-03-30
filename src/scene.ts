@@ -71,6 +71,10 @@ export async function initScene(scene: Scene) {
     }
   );
 
+  setTimeout(() => {
+    player.subtractHealth(5);
+  }, 1000);
+
   scene.onBeforeRenderObservable.add(() => {
     const dot = findDotProductBetween(camera, sphere);
 
@@ -193,6 +197,8 @@ async function createEnviroment(scene: Scene) {
     scene
   );
 
+  const floor = scene.getMeshByName("Floor");
+
   const fracturedCube = await SceneLoader.ImportMeshAsync(
     "",
     "./models/",
@@ -232,6 +238,15 @@ async function createEnviroment(scene: Scene) {
           }
         );
         mesh.material = meshes[5].material;
+
+        mesh.physicsImpostor.registerOnPhysicsCollide(
+          floor.physicsImpostor,
+          () => {
+            setTimeout(() => {
+              mesh.physicsImpostor.dispose();
+            }, 5000);
+          }
+        );
 
         // const physicsViewer = new PhysicsViewer();
         // physicsViewer.showImpostor(mesh.physicsImpostor);
@@ -297,6 +312,15 @@ async function createEnviroment(scene: Scene) {
               }
             );
             _mesh.material = mesh.material;
+
+            _mesh.physicsImpostor.registerOnPhysicsCollide(
+              floor.physicsImpostor,
+              () => {
+                setTimeout(() => {
+                  _mesh.physicsImpostor.dispose();
+                }, 5000);
+              }
+            );
           });
 
           mesh.dispose();

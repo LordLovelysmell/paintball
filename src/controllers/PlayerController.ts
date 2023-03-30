@@ -60,6 +60,8 @@ class PlayerController {
 
   private _isJumping = false;
 
+  private _canJump = false;
+
   /**
    * Оружие игрока
    */
@@ -129,6 +131,7 @@ class PlayerController {
       PhysicsImpostor.SphereImpostor,
       {
         mass: 50,
+        friction: 0,
       }
     );
 
@@ -145,6 +148,8 @@ class PlayerController {
     );
 
     this._playerMesh.isVisible = false;
+
+    this._setUpGUI();
 
     this._listenEvents();
     this._calculateMovement();
@@ -197,13 +202,29 @@ class PlayerController {
       }
 
       if (this._isJumping) {
-        currentVelocity.y = 10;
+        this._canJump = this._isGrounded();
+
+        if (this._canJump) {
+          currentVelocity.y = 10;
+        }
       }
 
       velocity.y = currentVelocity.y;
 
       this._playerWrapper.physicsImpostor.setLinearVelocity(velocity);
     });
+  }
+
+  private _isGrounded() {
+    const ray = new Ray(
+      this._playerWrapper.getAbsolutePosition(),
+      Vector3.Down(),
+      1
+    );
+
+    const pickingInfo = this._scene.pickWithRay(ray);
+
+    return Boolean(pickingInfo.pickedMesh);
   }
 
   private _setUpGUI() {
@@ -235,6 +256,8 @@ class PlayerController {
 
   subtractHealth(x: number) {
     this._characterHealth -= x;
+
+    this._hpText.text = String(this._characterHealth);
 
     this._damageIndicator.isVisible = true;
 
