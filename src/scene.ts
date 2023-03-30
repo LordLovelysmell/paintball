@@ -59,10 +59,8 @@ export async function initScene(scene: Scene) {
   );
 
   scene.clearColor = new Color4(0.75, 0.75, 0.9, 1.0);
-  // scene.collisionsEnabled = true;
 
   const sphere = CreateSphere("sphere", { diameter: 5 }, scene);
-  // sphere.checkCollisions = true;
   sphere.position = new Vector3(0, 6, 5);
 
   sphere.physicsImpostor = new PhysicsImpostor(

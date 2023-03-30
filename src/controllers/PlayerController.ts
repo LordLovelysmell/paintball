@@ -8,10 +8,17 @@ import {
   UniversalCamera,
   Vector3,
   StandardMaterial,
-  CreateBox,
   CreateSphere,
+  Animation,
+  Ray,
 } from "@babylonjs/core";
 import { PhysicsImpostor } from "@babylonjs/core/Physics/v1/physicsImpostor";
+import {
+  AdvancedDynamicTexture,
+  Control,
+  Image,
+  TextBlock,
+} from "@babylonjs/gui";
 
 class PlayerController {
   /**
@@ -43,6 +50,8 @@ class PlayerController {
    * Рост игрока
    */
   private _characterHeight = 1.8;
+
+  private _characterHealth = 100;
 
   /**
    * Бежит ли игрок?
@@ -78,6 +87,10 @@ class PlayerController {
 
   private _camera: UniversalCamera;
 
+  private _hpText: TextBlock;
+
+  private _damageIndicator: Image;
+
   /**
    * "Обертка" игрока. Меш, который будет передвигаться по сцене с помощью кнопок управления
    */
@@ -96,17 +109,13 @@ class PlayerController {
     this._splatters = splatters;
 
     this._playerMesh = playerMesh;
-    this._playerMesh.position = new Vector3(
-      this._playerMesh.position.x,
-      this._characterHeight / 2,
-      this._playerMesh.position.z
-    );
 
     this._camera = camera;
     this._camera.position.y = this._characterHeight;
 
     this._playerWrapper = CreateSphere("player-wrapper", {
       diameter: 1,
+      diameterY: this._characterHeight,
     });
 
     this._playerWrapper.position = new Vector3(
@@ -128,6 +137,13 @@ class PlayerController {
     this._camera.parent = this._playerWrapper;
 
     this._playerMesh.setParent(this._playerWrapper);
+
+    this._playerMesh.position = new Vector3(
+      this._playerMesh.position.x,
+      this._characterHeight / 2,
+      0
+    );
+
     this._playerMesh.isVisible = false;
 
     this._listenEvents();
@@ -143,13 +159,11 @@ class PlayerController {
     this._weapon.position = offset;
   }
 
-  _calculateMovement() {
+  private _calculateMovement() {
     let once = false;
 
     this._scene.registerBeforeRender(() => {
-      const cameraDirection = this._camera
-        .getDirection(Vector3.Forward())
-        .normalizeToNew();
+      const cameraDirection = this._camera.getDirection(Vector3.Forward());
 
       const currentSpeed = this._isRunning ? this._runSpeed : this._walkSpeed;
 
@@ -192,7 +206,71 @@ class PlayerController {
     });
   }
 
-  _calculateShoot() {
+  private _setUpGUI() {
+    const ui = AdvancedDynamicTexture.CreateFullscreenUI("player-ui");
+
+    const damageIndicator = new Image(
+      "damage-indicator",
+      "./textures/damage-indicator.png"
+    );
+    damageIndicator.isVisible = false;
+    damageIndicator.alpha = 0.5;
+
+    ui.addControl(damageIndicator);
+
+    const hpText = new TextBlock("HP", String(this._characterHealth));
+    hpText.fontSize = "40px";
+    hpText.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+    hpText.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+    hpText.width = "100px";
+    hpText.height = "50px";
+    hpText.left = 20;
+    hpText.top = 20;
+
+    ui.addControl(hpText);
+
+    this._hpText = hpText;
+    this._damageIndicator = damageIndicator;
+  }
+
+  subtractHealth(x: number) {
+    this._characterHealth -= x;
+
+    this._damageIndicator.isVisible = true;
+
+    const damageIndicatorAnimation = new Animation(
+      "damage-indicator-animation",
+      "alpha",
+      20,
+      Animation.ANIMATIONTYPE_FLOAT,
+      Animation.ANIMATIONLOOPMODE_CONSTANT
+    );
+
+    const keyFrames = [];
+    keyFrames.push({
+      frame: 0,
+      value: 0.5,
+    });
+
+    keyFrames.push({
+      frame: 10,
+      value: 0.25,
+    });
+
+    keyFrames.push({
+      frame: 20,
+      value: 0,
+    });
+
+    damageIndicatorAnimation.setKeys(keyFrames);
+
+    this._damageIndicator.animations = [];
+    this._damageIndicator.animations.push(damageIndicatorAnimation);
+
+    this._scene.beginAnimation(this._damageIndicator, 0, 20, false);
+  }
+
+  private _calculateShoot() {
     this._scene.onPointerDown = (event) => {
       if (this._isRunning) return;
 
