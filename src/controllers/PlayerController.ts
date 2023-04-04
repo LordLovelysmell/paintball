@@ -11,6 +11,7 @@ import {
   CreateSphere,
   Animation,
   Ray,
+  Sound,
 } from "@babylonjs/core";
 import { PhysicsImpostor } from "@babylonjs/core/Physics/v1/physicsImpostor";
 import {
@@ -67,6 +68,10 @@ class PlayerController {
    */
   private _weapon: AbstractMesh;
 
+  private _isBombPlanting = false;
+
+  private _isMovementEnabled = true;
+
   /**
    * Прицелился ли игрок?
    */
@@ -80,7 +85,7 @@ class PlayerController {
   /**
    * Скорость бега
    */
-  private _runSpeed = 25;
+  private _runSpeed = 15;
 
   /**
    * Массив материалов, которыми игрок может "стрелять" (используется для декалей)
@@ -97,6 +102,11 @@ class PlayerController {
    * "Обертка" игрока. Меш, который будет передвигаться по сцене с помощью кнопок управления
    */
   private _playerWrapper: AbstractMesh;
+
+  private _sounds: {
+    shot: Sound;
+    step: Sound;
+  };
 
   _scene: Scene;
 
@@ -149,11 +159,33 @@ class PlayerController {
 
     this._playerMesh.isVisible = false;
 
+    this._sounds = {
+      shot: new Sound("shot", "./sounds/shot.wav", this._scene, null, {
+        volume: 0.5,
+      }),
+      step: new Sound("shot", "./sounds/step.wav", this._scene, null, {
+        volume: 0.2,
+        playbackRate: 1.25,
+      }),
+    };
+
     this._setUpGUI();
 
     this._listenEvents();
     this._calculateMovement();
     this._calculateShoot();
+  }
+
+  get getMesh() {
+    return this._playerWrapper;
+  }
+
+  get isPlantingTheBomb() {
+    return this._isBombPlanting;
+  }
+
+  public setMovementStatus(status) {
+    this._isMovementEnabled = status;
   }
 
   async loadWeapon(path: string, filename: string, offset: Vector3) {
@@ -168,6 +200,10 @@ class PlayerController {
     let once = false;
 
     this._scene.registerBeforeRender(() => {
+      if (!this._isMovementEnabled) {
+        return;
+      }
+
       const cameraDirection = this._camera.getDirection(Vector3.Forward());
 
       const currentSpeed = this._isRunning ? this._runSpeed : this._walkSpeed;
@@ -184,6 +220,25 @@ class PlayerController {
       }
 
       let velocity = new Vector3(0, 0, 0);
+
+      if (
+        (currentVelocity.z !== 0 || currentVelocity.x !== 0) &&
+        !this._sounds.step.isPlaying &&
+        this._isGrounded()
+      ) {
+        if (this._isRunning) {
+          this._sounds.step.updateOptions({
+            playbackRate: 1.5,
+          });
+          this._sounds.step.play();
+        } else {
+          this._sounds.step.updateOptions({
+            playbackRate: 1,
+          });
+
+          this._sounds.step.play();
+        }
+      }
 
       if (this._movingForward) {
         velocity = cameraDirection.scale(currentSpeed);
@@ -205,7 +260,7 @@ class PlayerController {
         this._canJump = this._isGrounded();
 
         if (this._canJump) {
-          currentVelocity.y = 10;
+          currentVelocity.y = 7;
         }
       }
 
@@ -299,6 +354,8 @@ class PlayerController {
 
       // left click (can't find enum)
       if (event.button === 0) {
+        this._sounds.shot.play();
+
         const origin = this._playerWrapper
           .getAbsolutePosition()
           .subtract(new Vector3(0, -this._characterHeight, 0));
@@ -391,6 +448,9 @@ class PlayerController {
           case "Space":
             this._isJumping = true;
             break;
+          case "KeyB":
+            this._isBombPlanting = true;
+            break;
         }
       },
       false
@@ -418,6 +478,9 @@ class PlayerController {
             this._isRunning = false;
           case "Space":
             this._isJumping = false;
+            break;
+          case "KeyB":
+            this._isBombPlanting = false;
             break;
         }
       },

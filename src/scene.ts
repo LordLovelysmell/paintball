@@ -14,6 +14,7 @@ import {
   CannonJSPlugin,
   Axis,
   PhysicsViewer,
+  Sound,
 } from "@babylonjs/core";
 import { AdvancedDynamicTexture, Rectangle } from "@babylonjs/gui";
 import * as GUI from "@babylonjs/gui";
@@ -60,27 +61,65 @@ export async function initScene(scene: Scene) {
 
   scene.clearColor = new Color4(0.75, 0.75, 0.9, 1.0);
 
-  const sphere = CreateSphere("sphere", { diameter: 5 }, scene);
-  sphere.position = new Vector3(0, 6, 5);
+  const triggerBox = CreateBox("trigger-box", {
+    width: 6.5,
+    height: 0.25,
+    depth: 3,
+  });
+  triggerBox.position = new Vector3(-1.5, 4.25, 16.5);
+  triggerBox.visibility = 0;
 
-  sphere.physicsImpostor = new PhysicsImpostor(
-    sphere,
-    PhysicsImpostor.SphereImpostor,
+  let bombWasPlanted = false;
+
+  const bombNotificationSound = new Sound(
+    "bomb-notification",
+    "./sounds/bomb_notification.mp3"
+  );
+
+  const bombBeepSound = new Sound(
+    "bomb-notification",
+    "./sounds/bomb_beep.mp3",
+    scene,
+    null,
     {
-      mass: 1,
+      loop: true,
+      volume: 0.25,
+      spatialSound: true,
+      distanceModel: "exponential",
     }
   );
 
-  setTimeout(() => {
-    player.subtractHealth(5);
-  }, 1000);
-
   scene.onBeforeRenderObservable.add(() => {
-    const dot = findDotProductBetween(camera, sphere);
+    if (
+      triggerBox.intersectsMesh(player.getMesh) &&
+      !bombWasPlanted &&
+      player.isPlantingTheBomb
+    ) {
+      bombWasPlanted = true;
+      bombNotificationSound.play();
 
-    changeColorForCrosshair(ui.crosshair, dot);
+      player.setMovementStatus(false);
 
-    ui.vectorComparator.dotBarInner.width = `${Math.floor((dot + 1) * 100)}px`;
+      const timer = setTimeout(async () => {
+        const bombObject = await SceneLoader.ImportMeshAsync(
+          "",
+          "./models/",
+          "c4_explosive.glb"
+        );
+        const bomb = bombObject.meshes[0];
+        bomb.scaling = new Vector3(0.1, 0.1, 0.1);
+        bomb.position = player.getMesh
+          .getAbsolutePosition()
+          .clone()
+          .subtract(new Vector3(0, 0.9, 0));
+
+        player.setMovementStatus(true);
+        bombBeepSound.attachToMesh(bomb);
+        bombBeepSound.play();
+
+        clearTimeout(timer);
+      }, 3000);
+    }
   });
 
   window.addEventListener("keydown", (event) => {
@@ -190,6 +229,28 @@ function setUpUI() {
 }
 
 async function createEnviroment(scene: Scene) {
+  const theme = new Sound(
+    "theme",
+    "./sounds/theme.mp3",
+    scene,
+    () => {
+      theme.play();
+    },
+    {
+      volume: 0.03,
+      loop: true,
+    }
+  );
+
+  const explosionSounds = [
+    new Sound("explosion-1", "./sounds/explode_1.wav", scene, null, {
+      playbackRate: 1.5,
+    }),
+    new Sound("explosion-2", "./sounds/explode_2.wav", scene, null, {
+      playbackRate: 1.5,
+    }),
+  ];
+
   const { meshes } = await SceneLoader.ImportMeshAsync(
     "",
     "./models/",
@@ -227,6 +288,7 @@ async function createEnviroment(scene: Scene) {
 
     if (counter >= 3) {
       fracturedCube.meshes[0].position.copyFrom(destructableBox.position);
+      explosionSounds[Math.round(Math.random())].play();
 
       fracturedCube.meshes.forEach((mesh) => {
         mesh.setParent(null);
@@ -301,6 +363,8 @@ async function createEnviroment(scene: Scene) {
             scene
           );
           localCube.meshes[0].position.copyFrom(mesh.position);
+
+          explosionSounds[Math.round(Math.random())].play();
 
           localCube.meshes.forEach((_mesh) => {
             _mesh.setParent(null);
