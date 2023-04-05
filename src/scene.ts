@@ -14,6 +14,7 @@ import {
   Axis,
   Ray,
   Color3,
+  Sound,
 } from "@babylonjs/core";
 import "@babylonjs/inspector";
 import "@babylonjs/loaders";
@@ -75,6 +76,34 @@ export async function initScene(scene: Scene) {
 
   let trapIsReady = true;
 
+  const bombSounds = {
+    planting: new Sound(
+      "planting-sound",
+      "./sounds/bomb_notification.mp3",
+      scene,
+      null,
+      {
+        volume: 0.2,
+      }
+    ),
+    beep: new Sound("beep-sound", "./sounds/bomb_beep.mp3", scene, null, {
+      loop: true,
+      spatialSound: true,
+      distanceModel: "exponential",
+    }),
+  };
+
+  const triggerForBomb = CreateBox("trigger-bomb", {
+    width: 6.5,
+    height: 0.25,
+    depth: 3,
+  });
+
+  triggerForBomb.position = new Vector3(-1.5, 4.25, 16.5);
+  triggerForBomb.visibility = 0.25;
+
+  let bombWasPlanted = false;
+
   scene.onBeforeRenderObservable.add(() => {
     const pickingInfo = scene.pickWithRay(ray);
 
@@ -91,6 +120,40 @@ export async function initScene(scene: Scene) {
       if (pickingInfo.pickedMesh.id === "player-wrapper") {
         player.subtractHealth(5);
       }
+    }
+
+    if (
+      triggerForBomb.intersectsMesh(player.playerWrapper) &&
+      !bombWasPlanted &&
+      player.isPlantingTheBomb
+    ) {
+      bombWasPlanted = true;
+
+      player.movementEnabledStatus = false;
+
+      bombSounds.planting.play();
+
+      setTimeout(async () => {
+        const bombObject = await SceneLoader.ImportMeshAsync(
+          "",
+          "./models/",
+          "c4_explosive.glb"
+        );
+
+        const bomb = bombObject.meshes[0];
+
+        bomb.scaling = new Vector3(0.1, 0.1, 0.1);
+
+        bomb.position = player.playerWrapper.position.subtract(
+          new Vector3(0, 0.9, 0)
+        );
+
+        player.movementEnabledStatus = true;
+
+        bombSounds.beep.attachToMesh(bomb);
+
+        bombSounds.beep.play();
+      }, 3000);
     }
   });
 
@@ -119,6 +182,27 @@ export async function initScene(scene: Scene) {
 }
 
 async function createEnviroment(scene: Scene) {
+  const themeSound = new Sound(
+    "theme-sound",
+    "./sounds/theme.mp3",
+    scene,
+    function () {
+      themeSound.play();
+    },
+    {
+      volume: 0.1,
+    }
+  );
+
+  const explosions = [
+    new Sound("explosion-1", "./sounds/explode_1.wav", scene, null, {
+      volume: 0.5,
+    }),
+    new Sound("explosion-2", "./sounds/explode_2.wav", scene, null, {
+      volume: 0.5,
+    }),
+  ];
+
   const { meshes } = await SceneLoader.ImportMeshAsync(
     "",
     "./models/",
@@ -173,6 +257,8 @@ async function createEnviroment(scene: Scene) {
             scene
           );
           localCube.meshes[0].position.copyFrom(mesh.position);
+
+          explosions[Math.round(Math.random())].play();
 
           localCube.meshes.forEach((_mesh) => {
             _mesh.setParent(null);

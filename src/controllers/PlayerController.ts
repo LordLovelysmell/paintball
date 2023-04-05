@@ -11,6 +11,7 @@ import {
   CreateSphere,
   Ray,
   Animation,
+  Sound,
 } from "@babylonjs/core";
 import { PhysicsImpostor } from "@babylonjs/core/Physics/v1/physicsImpostor";
 import {
@@ -100,6 +101,15 @@ class PlayerController {
 
   _scene: Scene;
 
+  isPlantingTheBomb = false;
+
+  private _movementEnabled = true;
+
+  private _sounds: {
+    shot: Sound;
+    step: Sound;
+  };
+
   constructor(
     camera: UniversalCamera,
     playerMesh: Mesh,
@@ -149,11 +159,28 @@ class PlayerController {
 
     this._playerMesh.isVisible = false;
 
+    this._sounds = {
+      shot: new Sound("shot-sound", "./sounds/shot.wav", this._scene, null, {
+        volume: 0.25,
+      }),
+      step: new Sound("step-sound", "./sounds/step.wav", this._scene, null, {
+        volume: 0.2,
+      }),
+    };
+
     this._setUpGUI();
 
     this._listenEvents();
     this._calculateMovement();
     this._calculateShoot();
+  }
+
+  get playerWrapper(): AbstractMesh {
+    return this._playerWrapper;
+  }
+
+  set movementEnabledStatus(status: boolean) {
+    this._movementEnabled = status;
   }
 
   async loadWeapon(path: string, filename: string, offset: Vector3) {
@@ -168,6 +195,10 @@ class PlayerController {
     let once = false;
 
     this._scene.registerBeforeRender(() => {
+      if (!this._movementEnabled) {
+        return;
+      }
+
       this._hpText.text = String(this._characterHealth);
 
       const cameraDirection = this._camera.getDirection(Vector3.Forward());
@@ -177,12 +208,24 @@ class PlayerController {
       const currentVelocity =
         this._playerWrapper.physicsImpostor.getLinearVelocity();
 
+      if (
+        (currentVelocity.x !== 0 || currentVelocity.z !== 0) &&
+        !this._sounds.step.isPlaying &&
+        this._checkIsGrounded()
+      ) {
+        this._sounds.step.play();
+      }
+
       if (this._isRunning && !once) {
         this._weapon.rotate(Axis.Y, -Math.PI / 5);
         once = true;
+
+        this._sounds.step.updateOptions({ playbackRate: 1.5 });
       } else if (!this._isRunning && once) {
         this._weapon.rotate(Axis.Y, Math.PI / 5);
         once = false;
+
+        this._sounds.step.updateOptions({ playbackRate: 1 });
       }
 
       let velocity = new Vector3(0, 0, 0);
@@ -297,6 +340,8 @@ class PlayerController {
 
       // left click (can't find enum)
       if (event.button === 0) {
+        this._sounds.shot.play();
+
         const origin = this._playerWrapper
           .getAbsolutePosition()
           .subtract(new Vector3(0, -this._characterHeight, 0));
@@ -389,6 +434,9 @@ class PlayerController {
           case "Space":
             this._isJumping = true;
             break;
+          case "KeyB":
+            this.isPlantingTheBomb = true;
+            break;
         }
       },
       false
@@ -416,6 +464,9 @@ class PlayerController {
             this._isRunning = false;
           case "Space":
             this._isJumping = false;
+            break;
+          case "KeyB":
+            this.isPlantingTheBomb = false;
             break;
         }
       },
