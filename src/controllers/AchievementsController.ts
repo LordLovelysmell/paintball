@@ -23,9 +23,44 @@ class AchievementController {
 
   private _achievementKeyIsPressed = false;
 
-  constructor() {}
+  constructor(scene: Scene) {
+    this._scene = scene;
 
-  add(key: string, value: number, message?: string) {}
+    this._list = JSON.parse(localStorage.getItem("Achievements"));
+
+    this._createGUI();
+    this._listenEvents();
+
+    this._scene.onBeforeRenderObservable.add(() => {
+      this._board.isVisible = this._achievementKeyIsPressed;
+    });
+  }
+
+  add(key: string, value: number, message?: string) {
+    const doesAchievementExist = Boolean(
+      this._list.filter((element) => element.key === key).length
+    );
+
+    if (doesAchievementExist) {
+      this._list.map((element) => {
+        if (element.key === key) {
+          element.value += value;
+        }
+      });
+    } else {
+      this._list.push({
+        key,
+        value,
+        message,
+      });
+    }
+
+    localStorage.setItem("Achievements", JSON.stringify(this._list));
+
+    this._ui.dispose();
+
+    this._createGUI();
+  }
 
   private _createGUI() {
     const ui = AdvancedDynamicTexture.CreateFullscreenUI("achievements-ui");
@@ -71,7 +106,7 @@ class AchievementController {
 
     rectangle.addControl(contentRect);
 
-    rectangle.isVisible = true;
+    rectangle.isVisible = false;
 
     this._ui = ui;
     this._board = rectangle;

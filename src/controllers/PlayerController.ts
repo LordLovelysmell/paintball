@@ -20,6 +20,7 @@ import {
   Image,
   TextBlock,
 } from "@babylonjs/gui";
+import AchievementController from "./AchievementsController";
 
 class PlayerController {
   /**
@@ -110,11 +111,14 @@ class PlayerController {
     step: Sound;
   };
 
+  private _achievement: AchievementController;
+
   constructor(
     camera: UniversalCamera,
     playerMesh: Mesh,
     splatters: StandardMaterial[],
-    scene: Scene
+    scene: Scene,
+    achievement: AchievementController
   ) {
     this._scene = scene;
 
@@ -167,6 +171,8 @@ class PlayerController {
         volume: 0.2,
       }),
     };
+
+    this._achievement = achievement;
 
     this._setUpGUI();
 
@@ -250,6 +256,7 @@ class PlayerController {
         this._canJump = this._checkIsGrounded();
         if (this._canJump) {
           currentVelocity.y = 10;
+          this._achievement.add("jumps", 1, "Прыжков сделано:");
         }
       }
 
@@ -327,7 +334,7 @@ class PlayerController {
     const ray = new Ray(
       this._playerWrapper.getAbsolutePosition(),
       Vector3.Down(),
-      1
+      0.91
     );
     const pickingInfo = this._scene.pickWithRay(ray);
 
@@ -340,6 +347,8 @@ class PlayerController {
 
       // left click (can't find enum)
       if (event.button === 0) {
+        this._achievement.add("shot", 1, "Выстрелов сделано:");
+
         this._sounds.shot.play();
 
         const origin = this._playerWrapper
