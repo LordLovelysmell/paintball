@@ -44,6 +44,7 @@ export async function initScene(scene: Scene) {
   );
 
   const ui = setUpUI();
+
   await createEnviroment(scene);
 
   const splatters = createTexture();
