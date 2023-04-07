@@ -25,6 +25,9 @@ import AchievementController from "./controllers/AchievementsController";
 
 export async function initScene(scene: Scene) {
   scene.getEngine().displayLoadingUI();
+  const ui = setUpUI();
+
+  ui.vectorComparator.width = "0px";
 
   scene.enablePhysics(new Vector3(0, -20, 0), new CannonJSPlugin());
 
@@ -44,7 +47,6 @@ export async function initScene(scene: Scene) {
     Vector3.Zero()
   );
 
-  const ui = setUpUI();
   const achievement = new AchievementController(scene);
 
   await createEnviroment(scene, achievement);
@@ -63,6 +65,62 @@ export async function initScene(scene: Scene) {
     "paintball_gun.glb",
     new Vector3(0.3, -0.45, 0.5)
   );
+
+  const randomPromise = new Promise((resolve, reject) => {
+    const random = Math.random();
+
+    setTimeout(() => {
+      if (random > 0.5) {
+        resolve("Всё хорошо.");
+      } else {
+        reject("Всё плохо.");
+      }
+    }, 2000);
+  });
+
+  Promise.all([
+    SceneLoader.ImportMeshAsync(null, "./models/", "ammo_box.glb", scene).then(
+      function (result) {
+        const ammoBox = result.meshes[1];
+
+        ammoBox.setParent(null);
+        ammoBox.position = new Vector3(-18, 0.6, 7.32);
+        ammoBox.scaling.scaleInPlace(0.1);
+        ammoBox.rotate(Axis.Z, Math.PI / 2.4);
+        ammoBox.physicsImpostor = new PhysicsImpostor(
+          ammoBox,
+          PhysicsImpostor.BoxImpostor,
+          {
+            mass: 0,
+          }
+        );
+
+        console.log("Ящик с патронами загружен.");
+      }
+    ),
+    SceneLoader.ImportMeshAsync(null, "./models/", "medkit.glb", scene).then(
+      function (result) {
+        result.meshes[0].position = new Vector3(17.3, 0.39, 5.45);
+        result.meshes[0].scaling.scaleInPlace(500);
+        result.meshes[0].rotate(Axis.Y, -Math.PI / 1.8);
+        console.log("Аптечка загружена.");
+      }
+    ),
+  ]).then(() => {
+    console.log("Ящик с патронами и аптечка загружены.");
+    ui.vectorComparator.width = "100px";
+  });
+
+  randomPromise
+    .then((status) => {
+      console.log(status);
+    })
+    .catch(() => {
+      console.log("Случилась ошибка, но сейчас все хорошо");
+    })
+    .finally(() => {
+      ui.vectorComparator.width = "199px";
+    });
 
   scene.clearColor = new Color4(0.75, 0.75, 0.9, 1.0);
 
