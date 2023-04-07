@@ -21,6 +21,7 @@ import "@babylonjs/loaders";
 import PlayerController from "./controllers/PlayerController";
 import { PhysicsImpostor } from "@babylonjs/core/Physics/v1/physicsImpostor";
 import { createTexture, setUpUI } from "./utils";
+import AchievementController from "./controllers/AchievementsController";
 
 export async function initScene(scene: Scene) {
   scene.getEngine().displayLoadingUI();
@@ -44,11 +45,19 @@ export async function initScene(scene: Scene) {
   );
 
   const ui = setUpUI();
-  await createEnviroment(scene);
+  const achievement = new AchievementController(scene);
+
+  await createEnviroment(scene, achievement);
 
   const splatters = createTexture();
   const playerMesh = CreateBox("player-mesh");
-  const player = new PlayerController(camera, playerMesh, splatters, scene);
+  const player = new PlayerController(
+    camera,
+    playerMesh,
+    splatters,
+    scene,
+    achievement
+  );
   await player.loadWeapon(
     "./models/",
     "paintball_gun.glb",
@@ -153,6 +162,8 @@ export async function initScene(scene: Scene) {
         bombSounds.beep.attachToMesh(bomb);
 
         bombSounds.beep.play();
+
+        achievement.add("bombsPlanted", 1, "Бомб установлено:");
       }, 3000);
     }
   });
@@ -181,7 +192,10 @@ export async function initScene(scene: Scene) {
   scene.getEngine().hideLoadingUI();
 }
 
-async function createEnviroment(scene: Scene) {
+async function createEnviroment(
+  scene: Scene,
+  achievement: AchievementController
+) {
   const themeSound = new Sound(
     "theme-sound",
     "./sounds/theme.mp3",
@@ -250,6 +264,8 @@ async function createEnviroment(scene: Scene) {
         }
 
         if (mesh.metadata.counter >= 3) {
+          achievement.add("boxExplosions", 1, "Коробок взорвано:");
+
           const localCube = await SceneLoader.ImportMeshAsync(
             "",
             "./models/",
