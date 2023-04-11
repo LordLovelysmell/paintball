@@ -23,6 +23,7 @@ import PlayerController from "./controllers/PlayerController";
 import { PhysicsImpostor } from "@babylonjs/core/Physics/v1/physicsImpostor";
 import { createTexture } from "./utils";
 import AchievementController from "./controllers/AchievementsController";
+import DummyPrefab from "./prefabs/DummyPrefab";
 
 export async function initScene(scene: Scene) {
   scene.getEngine().displayLoadingUI();
@@ -65,6 +66,12 @@ export async function initScene(scene: Scene) {
   await createEnviroment(scene);
 
   scene.clearColor = new Color4(0.75, 0.75, 0.9, 1.0);
+
+  const dummy1 = new DummyPrefab();
+  await dummy1.init({ position: new Vector3(-3, 0, -11), name: "dummy1" });
+
+  const dummy2 = new DummyPrefab();
+  await dummy2.init({ position: new Vector3(0, 0, -13), name: "dummy1" });
 
   Promise.all([
     SceneLoader.ImportMeshAsync(null, "./models/", "ammo_box.glb", scene).then(
@@ -212,6 +219,7 @@ export async function initScene(scene: Scene) {
   const floor = scene.getMeshByName("Floor");
 
   player.onAfterShot = async (pickedMesh: AbstractMesh) => {
+    console.log("Мы выстрелили");
     if (pickedMesh.name.includes("Box")) {
       if (!Boolean(pickedMesh.metadata.counter)) {
         pickedMesh.metadata = {
