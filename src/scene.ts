@@ -15,6 +15,7 @@ import {
   Ray,
   Color3,
   Sound,
+  AbstractMesh,
 } from "@babylonjs/core";
 import "@babylonjs/inspector";
 import "@babylonjs/loaders";
@@ -22,6 +23,7 @@ import PlayerController from "./controllers/PlayerController";
 import { PhysicsImpostor } from "@babylonjs/core/Physics/v1/physicsImpostor";
 import { createTexture, setUpUI } from "./utils";
 import AchievementController from "./controllers/AchievementsController";
+import Dummy from "./prefabs/DummyPrefab";
 
 export async function initScene(scene: Scene) {
   scene.getEngine().displayLoadingUI();
@@ -44,10 +46,27 @@ export async function initScene(scene: Scene) {
     Vector3.Zero()
   );
 
+  const dummy1 = new Dummy(scene);
+  await dummy1.init({
+    name: "dummy-1",
+    position: new Vector3(-5, 0, -10),
+  });
+
+  const dummy2 = new Dummy(scene);
+  await dummy2.init({
+    name: "dummy-2",
+    position: new Vector3(-3, 0, -11),
+  });
+
+  const dummy3 = new Dummy(scene);
+  await dummy3.init({
+    name: "dummy-3",
+    position: new Vector3(-3, 0, 11),
+  });
+  dummy3.setRotation(Math.PI);
+
   const ui = setUpUI();
   const achievement = new AchievementController(scene);
-
-  await createEnviroment(scene, achievement);
 
   const splatters = createTexture();
   const playerMesh = CreateBox("player-mesh");
@@ -63,6 +82,8 @@ export async function initScene(scene: Scene) {
     "paintball_gun.glb",
     new Vector3(0.3, -0.45, 0.5)
   );
+
+  await createEnviroment(scene);
 
   scene.clearColor = new Color4(0.75, 0.75, 0.9, 1.0);
 
@@ -168,6 +189,76 @@ export async function initScene(scene: Scene) {
     }
   });
 
+  const explosions = [
+    new Sound("explosion-1", "./sounds/explode_1.wav", scene, null, {
+      volume: 0.5,
+    }),
+    new Sound("explosion-2", "./sounds/explode_2.wav", scene, null, {
+      volume: 0.5,
+    }),
+  ];
+
+  const floor = scene.getMeshByName("Floor");
+
+  player.onAfterShot = async (pickedMesh: AbstractMesh) => {
+    if (pickedMesh.name === "dummy-1") {
+      dummy1.subtractHealth();
+    }
+
+    if (pickedMesh.name === "dummy-2") {
+      dummy2.subtractHealth();
+    }
+
+    if (pickedMesh.name.includes("Box")) {
+      if (!Boolean(pickedMesh.metadata.counter)) {
+        pickedMesh.metadata = {
+          counter: 1,
+        };
+      } else {
+        pickedMesh.metadata.counter++;
+      }
+
+      if (pickedMesh.metadata.counter >= 3) {
+        pickedMesh.metadata.counter = 3;
+
+        achievement.add("boxExplosions", 1, "Коробок взорвано:");
+
+        const localCube = await SceneLoader.ImportMeshAsync(
+          "",
+          "./models/",
+          "fractured-cube.glb",
+          scene
+        );
+        localCube.meshes[0].position.copyFrom(pickedMesh.position);
+
+        explosions[Math.round(Math.random())].play();
+
+        localCube.meshes.forEach((_mesh) => {
+          _mesh.setParent(null);
+          _mesh.physicsImpostor = new PhysicsImpostor(
+            _mesh,
+            PhysicsImpostor.BoxImpostor,
+            {
+              mass: 0.5,
+            }
+          );
+          _mesh.material = pickedMesh.material;
+
+          _mesh.physicsImpostor.registerOnPhysicsCollide(
+            floor.physicsImpostor,
+            () => {
+              setTimeout(() => {
+                _mesh.physicsImpostor.dispose();
+              }, 5000);
+            }
+          );
+        });
+
+        pickedMesh.dispose();
+      }
+    }
+  };
+
   window.addEventListener("keydown", (event) => {
     //Ctrl+I
     if (event.ctrlKey && event.keyCode === 73) {
@@ -192,10 +283,7 @@ export async function initScene(scene: Scene) {
   scene.getEngine().hideLoadingUI();
 }
 
-async function createEnviroment(
-  scene: Scene,
-  achievement: AchievementController
-) {
+async function createEnviroment(scene: Scene) {
   const themeSound = new Sound(
     "theme-sound",
     "./sounds/theme.mp3",
@@ -208,23 +296,12 @@ async function createEnviroment(
     }
   );
 
-  const explosions = [
-    new Sound("explosion-1", "./sounds/explode_1.wav", scene, null, {
-      volume: 0.5,
-    }),
-    new Sound("explosion-2", "./sounds/explode_2.wav", scene, null, {
-      volume: 0.5,
-    }),
-  ];
-
   const { meshes } = await SceneLoader.ImportMeshAsync(
     "",
     "./models/",
     "paintball-level-final.glb",
     scene
   );
-
-  const floor = scene.getMeshByName("Floor");
 
   meshes.forEach((mesh) => {
     if (
@@ -253,63 +330,16 @@ async function createEnviroment(
       );
 
       mesh.position.y += 0.5;
-
-      mesh.metadata = {
-        counter: 0,
-      };
-
-      mesh.physicsImpostor.onCollideEvent = async (collider, collidedWith) => {
-        if ((collidedWith.object as Mesh).id === "ball") {
-          mesh.metadata.counter++;
-        }
-
-        if (mesh.metadata.counter >= 3) {
-          achievement.add("boxExplosions", 1, "Коробок взорвано:");
-
-          const localCube = await SceneLoader.ImportMeshAsync(
-            "",
-            "./models/",
-            "fractured-cube.glb",
-            scene
-          );
-          localCube.meshes[0].position.copyFrom(mesh.position);
-
-          explosions[Math.round(Math.random())].play();
-
-          localCube.meshes.forEach((_mesh) => {
-            _mesh.setParent(null);
-            _mesh.physicsImpostor = new PhysicsImpostor(
-              _mesh,
-              PhysicsImpostor.BoxImpostor,
-              {
-                mass: 0.5,
-              }
-            );
-            _mesh.material = mesh.material;
-
-            _mesh.physicsImpostor.registerOnPhysicsCollide(
-              floor.physicsImpostor,
-              () => {
-                setTimeout(() => {
-                  _mesh.physicsImpostor.dispose();
-                }, 5000);
-              }
-            );
-          });
-
-          mesh.dispose();
-        }
-      };
     }
 
     if (mesh.name === "Ramp") {
-      const rampBox1 = CreateBox("ramp-box1", {
+      const rampBox1 = CreateBox("Ramp", {
         width: 6.71,
         height: 4.14,
         depth: 4,
       });
       rampBox1.position = new Vector3(1.35, 2.17, 2.69);
-      const rampBox2 = CreateBox("ramp-box2", {
+      const rampBox2 = CreateBox("Ramp", {
         width: 6.71,
         height: 4.14,
         depth: 8,
