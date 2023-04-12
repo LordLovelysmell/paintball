@@ -22,6 +22,7 @@ import {
   TextBlock,
 } from "@babylonjs/gui";
 import AchievementController from "./AchievementsController";
+import BulletPrefab from "../prefabs/BulletPrefab";
 
 class PlayerController {
   /**
@@ -360,64 +361,13 @@ class PlayerController {
 
         const cameraDirection = this._camera.getDirection(Vector3.Forward());
 
-        const ball = CreateSphere("ball", { diameter: 0.05 });
-        ball.position = origin;
-        ball.isPickable = false;
-
-        ball.physicsImpostor = new PhysicsImpostor(
-          ball,
-          PhysicsImpostor.SphereImpostor,
-          {
-            mass: 0.05,
-          }
+        const bullet = new BulletPrefab(
+          origin,
+          cameraDirection,
+          this._splatters,
+          this.onAfterShot,
+          this._scene
         );
-
-        ball.physicsImpostor.applyImpulse(
-          cameraDirection.scale(2),
-          ball.getAbsolutePosition()
-        );
-
-        ball.physicsImpostor.onCollideEvent = (collider, collidedWith) => {
-          ball.dispose();
-
-          const collidePosition = collider.physicsBody.position;
-
-          const positionForDecale = new Vector3(
-            collidePosition.x,
-            collidePosition.y,
-            collidePosition.z
-          );
-
-          const ray = new Ray(
-            origin,
-            positionForDecale.subtract(origin).normalize()
-          );
-
-          const pickingInfo = this._scene.pickWithRay(ray);
-
-          if (!pickingInfo.pickedMesh) return;
-
-          if (
-            (collidedWith.object as Mesh).name &&
-            pickingInfo.pickedMesh.name !== (collidedWith.object as Mesh).name
-          ) {
-            return;
-          }
-          const decal = CreateDecal("decal", pickingInfo.pickedMesh as Mesh, {
-            position: pickingInfo.pickedPoint,
-            normal: pickingInfo.getNormal(true),
-            size: new Vector3(0.5, 0.5, 0.5),
-          });
-
-          decal.material =
-            this._splatters[Math.floor(Math.random() * this._splatters.length)];
-
-          decal.isPickable = false;
-
-          decal.setParent(collidedWith.object as Mesh);
-
-          this.onAfterShot(pickingInfo.pickedMesh);
-        };
       } else if (event.button === 2) {
         // right click (can't find enum)
         this._isZooming = !this._isZooming;
