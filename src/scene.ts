@@ -67,11 +67,15 @@ export async function initScene(scene: Scene) {
 
   scene.clearColor = new Color4(0.75, 0.75, 0.9, 1.0);
 
-  const dummy1 = new DummyPrefab();
+  const dummy1 = new DummyPrefab(achievement);
   await dummy1.init({ position: new Vector3(-3, 0, -11), name: "dummy1" });
 
-  const dummy2 = new DummyPrefab();
-  await dummy2.init({ position: new Vector3(0, 0, -13), name: "dummy1" });
+  const dummy2 = new DummyPrefab(achievement);
+  await dummy2.init({ position: new Vector3(0, 0, -13), name: "dummy2" });
+
+  const dummy3 = new DummyPrefab(achievement);
+  await dummy3.init({ position: new Vector3(-3, 0, 12), name: "dummy3" });
+  dummy3.setRotation(Math.PI);
 
   Promise.all([
     SceneLoader.ImportMeshAsync(null, "./models/", "ammo_box.glb", scene).then(
@@ -220,6 +224,18 @@ export async function initScene(scene: Scene) {
 
   player.onAfterShot = async (pickedMesh: AbstractMesh) => {
     console.log("Мы выстрелили");
+    if (pickedMesh.name === "dummy1") {
+      dummy1.subtractHealth();
+    }
+
+    if (pickedMesh.name === "dummy2") {
+      dummy2.subtractHealth();
+    }
+
+    if (pickedMesh.name === "dummy3") {
+      dummy3.subtractHealth();
+    }
+
     if (pickedMesh.name.includes("Box")) {
       if (!Boolean(pickedMesh.metadata.counter)) {
         pickedMesh.metadata = {
