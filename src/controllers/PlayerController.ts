@@ -12,6 +12,7 @@ import {
   Ray,
   Animation,
   Sound,
+  RayHelper,
 } from "@babylonjs/core";
 import { PhysicsImpostor } from "@babylonjs/core/Physics/v1/physicsImpostor";
 import {
@@ -113,6 +114,8 @@ class PlayerController {
 
   private _achievement: AchievementController;
 
+  onAfterShot: Function;
+
   constructor(
     camera: UniversalCamera,
     playerMesh: Mesh,
@@ -178,7 +181,7 @@ class PlayerController {
 
     this._listenEvents();
     this._calculateMovement();
-    this._calculateShoot();
+    this._calculateShot();
   }
 
   get playerWrapper(): AbstractMesh {
@@ -341,7 +344,7 @@ class PlayerController {
     return Boolean(pickingInfo.pickedMesh);
   }
 
-  private _calculateShoot() {
+  private _calculateShot() {
     this._scene.onPointerDown = (event) => {
       if (this._isRunning) return;
 
@@ -355,53 +358,65 @@ class PlayerController {
           .getAbsolutePosition()
           .subtract(new Vector3(0, -this._characterHeight, 0));
 
-        const ray = this._camera.getForwardRay(undefined, undefined, origin);
-
-        const raycastHit = this._scene.pickWithRay(ray);
-
         const cameraDirection = this._camera.getDirection(Vector3.Forward());
 
-        const ball = CreateSphere("ball", { diameter: 0.1 });
+        const ball = CreateSphere("ball", { diameter: 0.05 });
         ball.position = origin;
+        ball.isPickable = false;
 
         ball.physicsImpostor = new PhysicsImpostor(
           ball,
           PhysicsImpostor.SphereImpostor,
           {
-            mass: 0.5,
+            mass: 0.05,
           }
         );
 
         ball.physicsImpostor.applyImpulse(
-          cameraDirection.scale(20),
+          cameraDirection.scale(2),
           ball.getAbsolutePosition()
         );
 
         ball.physicsImpostor.onCollideEvent = (collider, collidedWith) => {
-          setTimeout(() => {
-            ball.dispose();
+          ball.dispose();
 
-            const collidePosition = collider.physicsBody.position;
+          const collidePosition = collider.physicsBody.position;
 
-            const decal = CreateDecal("decal", collidedWith.object as Mesh, {
-              position: new Vector3(
-                collidePosition.x,
-                collidePosition.y,
-                collidePosition.z
-              ),
-              normal: raycastHit?.getNormal(true),
-              size: new Vector3(1, 1, 1),
-            });
+          const positionForDecale = new Vector3(
+            collidePosition.x,
+            collidePosition.y,
+            collidePosition.z
+          );
 
-            decal.material =
-              this._splatters[
-                Math.floor(Math.random() * this._splatters.length)
-              ];
+          const ray = new Ray(
+            origin,
+            positionForDecale.subtract(origin).normalize()
+          );
 
-            decal.isPickable = false;
+          const pickingInfo = this._scene.pickWithRay(ray);
 
-            decal.setParent(collidedWith.object as Mesh);
-          }, 0);
+          if (!pickingInfo.pickedMesh) return;
+
+          if (
+            (collidedWith.object as Mesh).name &&
+            pickingInfo.pickedMesh.name !== (collidedWith.object as Mesh).name
+          ) {
+            return;
+          }
+          const decal = CreateDecal("decal", pickingInfo.pickedMesh as Mesh, {
+            position: pickingInfo.pickedPoint,
+            normal: pickingInfo.getNormal(true),
+            size: new Vector3(0.5, 0.5, 0.5),
+          });
+
+          decal.material =
+            this._splatters[Math.floor(Math.random() * this._splatters.length)];
+
+          decal.isPickable = false;
+
+          decal.setParent(collidedWith.object as Mesh);
+
+          this.onAfterShot(pickingInfo.pickedMesh);
         };
       } else if (event.button === 2) {
         // right click (can't find enum)

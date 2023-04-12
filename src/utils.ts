@@ -53,29 +53,29 @@ export function setUpUI() {
   yRect.color = crosshairColor;
   tex.addControl(yRect);
 
-  const dotBar = new Rectangle("dotBar");
-  dotBar.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
-  dotBar.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
-  dotBar.top = "-20px";
-  dotBar.width = "200px";
-  dotBar.height = "40px";
-  dotBar.background = "grey";
-  tex.addControl(dotBar);
+  // const dotBar = new Rectangle("dotBar");
+  // dotBar.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
+  // dotBar.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
+  // dotBar.top = "-20px";
+  // dotBar.width = "200px";
+  // dotBar.height = "40px";
+  // dotBar.background = "grey";
+  // tex.addControl(dotBar);
 
-  const dotBarInner = new Rectangle("dotBarInner");
-  dotBarInner.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-  dotBarInner.verticalAlignment = Control.VERTICAL_ALIGNMENT_CENTER;
-  dotBarInner.width = "100px";
-  dotBarInner.height = "40px";
-  dotBarInner.background = "green";
-  dotBar.addControl(dotBarInner);
+  // const dotBarInner = new Rectangle("dotBarInner");
+  // dotBarInner.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+  // dotBarInner.verticalAlignment = Control.VERTICAL_ALIGNMENT_CENTER;
+  // dotBarInner.width = "100px";
+  // dotBarInner.height = "40px";
+  // dotBarInner.background = "green";
+  // dotBar.addControl(dotBarInner);
 
   return {
     crosshair: {
       xRect,
       yRect,
     },
-    vectorComparator: dotBarInner,
+    // vectorComparator: dotBarInner,
   };
 }
 
