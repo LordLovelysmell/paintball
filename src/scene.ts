@@ -21,7 +21,7 @@ import "@babylonjs/inspector";
 import "@babylonjs/loaders";
 import PlayerController from "./controllers/PlayerController";
 import { PhysicsImpostor } from "@babylonjs/core/Physics/v1/physicsImpostor";
-import { createTexture } from "./utils";
+import { createTexture, setUpUI } from "./utils";
 import AchievementController from "./controllers/AchievementsController";
 import DummyPrefab from "./prefabs/DummyPrefab";
 
@@ -37,6 +37,8 @@ export async function initScene(scene: Scene) {
   scene.activeCamera = camera;
   scene.activeCamera.minZ = 0.05;
   scene.activeCamera.attachControl();
+
+  const ui = setUpUI();
 
   const debugCamera = new ArcRotateCamera(
     "debug-camera",
