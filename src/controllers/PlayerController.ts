@@ -23,6 +23,7 @@ import {
 } from "@babylonjs/gui";
 import AchievementController from "./AchievementsController";
 import BulletPrefab from "../prefabs/BulletPrefab";
+import PoolController from "./PoolController";
 
 class PlayerController {
   /**
@@ -346,11 +347,18 @@ class PlayerController {
   }
 
   private _calculateShot() {
+    const bulletPool = new PoolController<BulletPrefab>(
+      (index) => new BulletPrefab(this._splatters, this._scene, index),
+      5
+    );
+
     this._scene.onPointerDown = (event) => {
       if (this._isRunning) return;
 
       // left click (can't find enum)
       if (event.button === 0) {
+        const bullet = bulletPool.pull();
+
         this._achievement.add("shot", 1, "Выстрелов сделано:");
 
         this._sounds.shot.play();
@@ -361,12 +369,11 @@ class PlayerController {
 
         const cameraDirection = this._camera.getDirection(Vector3.Forward());
 
-        const bullet = new BulletPrefab(
+        bullet.addPhysics(
           origin,
           cameraDirection,
-          this._splatters,
           this.onAfterShot,
-          this._scene
+          bulletPool
         );
       } else if (event.button === 2) {
         // right click (can't find enum)

@@ -8,32 +8,46 @@ import {
   StandardMaterial,
   Vector3,
 } from "@babylonjs/core";
+import PoolController from "../controllers/PoolController";
 
 class BulletPrefab {
   private _bullet: Mesh;
   private _scene: Scene;
   private _splatters: StandardMaterial[];
 
-  constructor(
-    origin: Vector3,
-    cameraDirection: Vector3,
-    splatters: StandardMaterial[],
-    onAfterShot: Function,
-    scene: Scene
-  ) {
+  constructor(splatters: StandardMaterial[], scene: Scene, index: number) {
     this._scene = scene;
     this._splatters = splatters;
 
-    this._bullet = CreateSphere("ball", { diameter: 0.05 });
-    this._bullet.position = origin;
+    this.init(index);
+  }
+
+  init(index: number) {
+    this._bullet = CreateSphere("bullet-prefab-" + index, { diameter: 0.05 });
     this._bullet.isPickable = false;
+  }
+
+  get mesh() {
+    return this._bullet;
+  }
+
+  addPhysics(
+    origin: Vector3,
+    cameraDirection: Vector3,
+    onAfterShot: Function,
+    bulletPool: PoolController<this>
+  ) {
+    let onCollideWasFired = false;
+
+    this._bullet.position = origin;
 
     this._bullet.physicsImpostor = new PhysicsImpostor(
       this._bullet,
       PhysicsImpostor.SphereImpostor,
       {
         mass: 0.05,
-      }
+      },
+      this._scene
     );
 
     this._bullet.physicsImpostor.applyImpulse(
@@ -41,8 +55,19 @@ class BulletPrefab {
       this._bullet.getAbsolutePosition()
     );
 
+    setTimeout(() => {
+      if (!onCollideWasFired) {
+        this._bullet.physicsImpostor.dispose();
+        bulletPool.push(this);
+      }
+    }, 10000);
+
     this._bullet.physicsImpostor.onCollideEvent = (collider, collidedWith) => {
-      this._bullet.dispose();
+      if (onCollideWasFired) return;
+      onCollideWasFired = true;
+
+      this._bullet.physicsImpostor.dispose();
+      bulletPool.push(this);
 
       const collidePosition = collider.physicsBody.position;
 
@@ -82,9 +107,7 @@ class BulletPrefab {
 
       onAfterShot(pickingInfo.pickedMesh);
     };
-  }
 
-  get mesh() {
     return this._bullet;
   }
 }

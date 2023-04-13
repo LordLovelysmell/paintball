@@ -1,44 +1,45 @@
-import { AbstractMesh, PhysicsImpostor } from "@babylonjs/core";
+import { Mesh, Vector3 } from "@babylonjs/core";
 
-class PullController {
-  private _objectsPool: AbstractMesh[] = [];
-  private _prefab: AbstractMesh;
+type ConstructorFn<T> = (index: number) => T;
 
-  constructor(poolObject: AbstractMesh, numberOfObjectsInPull: number) {
-    this._prefab = poolObject;
+class PullController<T extends { mesh: Mesh }> {
+  private _objectsPool: T[] = [];
+  private _constructorFn: Function;
 
-    // poolObject.dispose();
+  constructor(constructorFn: ConstructorFn<T>, numberOfObjectsInPull: number) {
+    this._constructorFn = constructorFn;
 
     for (let i = 0; i < numberOfObjectsInPull; i++) {
-      this._prefab.isVisible = false;
+      const constructedPrefab = constructorFn(i);
+      constructedPrefab.mesh.isVisible = false;
 
-      this._objectsPool.push(this._prefab);
+      this._objectsPool.push(constructedPrefab);
     }
   }
 
-  get poolLength() {
+  private get _poolLength() {
     return this._objectsPool.length;
   }
 
   pull() {
-    let object: AbstractMesh;
+    let object: T;
 
-    console.log(this.poolLength);
-    if (this.poolLength > 0) {
+    console.log(this._poolLength);
+    if (this._poolLength > 0) {
       object = this._objectsPool.pop();
     } else {
-      object = this._prefab.clone(this._prefab.name, null, false);
+      object = this._constructorFn();
     }
 
-    object.isVisible = true;
+    object.mesh.isVisible = true;
 
     return object;
   }
 
-  push(object: AbstractMesh) {
-    console.log(object);
+  push(object: T) {
+    object.mesh.position = Vector3.Zero();
+    object.mesh.isVisible = false;
 
-    // object.isVisible = false;
     this._objectsPool.push(object);
   }
 }
